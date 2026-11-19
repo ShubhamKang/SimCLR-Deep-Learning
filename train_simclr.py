@@ -1,6 +1,16 @@
-"""SimCLR pretraining on STL-10 unlabeled. Example:
-python train_simclr.py --name full --epochs 100 --batch_size 256
-python train_simclr.py --name no_blur --augs crop flip color gray --epochs 20 --subset 20000
+"""SimCLR pretraining on the STL-10 unlabelled images.
+
+What this script does, step by step:
+  1. Loads unlabelled images; each item is two random augmented views of one image.
+  2. Passes both views through the encoder + projection head.
+  3. Computes the NT-Xent contrastive loss (views of the same image should match).
+  4. Updates the network, and saves the encoder after every epoch.
+
+No labels are used anywhere in this file.
+
+Examples:
+  python train_simclr.py --name full --epochs 100 --batch_size 256
+  python train_simclr.py --name no_blur --augs crop flip color gray --epochs 20 --subset 20000
 """
 import argparse, csv, os, time
 import torch
@@ -11,45 +21,73 @@ from src.data import unlabeled_set
 from src.model import SimCLR
 from src.losses import nt_xent
 
+# ---------------- command-line options ----------------
 p = argparse.ArgumentParser()
-p.add_argument("--name", required=True)
-p.add_argument("--augs", nargs="*", default=ALL_AUGS, help="subset of: " + " ".join(ALL_AUGS))
+p.add_argument("--name", required=True, help="run name; used for the checkpoint and log file names")
+p.add_argument("--augs", nargs="*", default=ALL_AUGS, help="augmentations to switch ON, from: " + " ".join(ALL_AUGS))
 p.add_argument("--epochs", type=int, default=100)
-p.add_argument("--batch_size", type=int, default=256)
+p.add_argument("--batch_size", type=int, default=256, help="images per batch; each gives 2 views, so the network sees 2x this")
 p.add_argument("--lr", type=float, default=3e-4)
-p.add_argument("--temp", type=float, default=0.5)
-p.add_argument("--subset", type=int, default=None, help="use N unlabeled images (ablations)")
-p.add_argument("--data", default="data")
-p.add_argument("--workers", type=int, default=4)
+p.add_argument("--temp", type=float, default=0.5, help="loss temperature")
+p.add_argument("--subset", type=int, default=None, help="use only N unlabelled images (for fast ablations)")
+p.add_argument("--data", default="data", help="folder where STL-10 is stored / downloaded")
+p.add_argument("--workers", type=int, default=4, help="CPU processes that prepare augmented images")
 p.add_argument("--seed", type=int, default=0)
 a = p.parse_args()
 
-torch.manual_seed(a.seed)
+# ---------------- setup ----------------
+torch.manual_seed(a.seed)  # reproducible weight initialisation and shuffling
 dev = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Dataset yields (view1, view2). drop_last=True keeps every batch the same size, which
+# keeps the number of negatives per image constant.
 ds = unlabeled_set(a.data, simclr_transform(a.augs), a.subset, a.seed)
-dl = DataLoader(ds, a.batch_size, shuffle=True, drop_last=True, num_workers=a.workers, pin_memory=True, persistent_workers=a.workers > 0)
+dl = DataLoader(ds, a.batch_size, shuffle=True, drop_last=True, num_workers=a.workers,
+                pin_memory=True, persistent_workers=a.workers > 0)
+
 model = SimCLR().to(dev)
 opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-6)
+# Cosine schedule: the learning rate decays smoothly to ~0 over all training steps.
 sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.epochs * len(dl))
+# GradScaler is needed for mixed precision (fp16) on GPU; it is disabled on CPU.
 scaler = torch.amp.GradScaler(enabled=dev == "cuda")
 
-os.makedirs("checkpoints", exist_ok=True); os.makedirs("results/logs", exist_ok=True)
+os.makedirs("checkpoints", exist_ok=True)
+os.makedirs("results/logs", exist_ok=True)
 log_path = f"results/logs/pretrain_{a.name}.csv"
 with open(log_path, "w", newline="") as f:
-    csv.writer(f).writerow(["epoch", "loss", "seconds"])
+    csv.writer(f).writerow(["epoch", "loss", "seconds"])  # header; one row is added per epoch
+
+# ---------------- training loop ----------------
 t0 = time.time()
 for ep in range(1, a.epochs + 1):
-    model.train(); tot = 0
+    model.train()
+    tot = 0
     for x1, x2 in tqdm(dl, desc=f"ep {ep}/{a.epochs}", leave=False):
         x1, x2 = x1.to(dev, non_blocking=True), x2.to(dev, non_blocking=True)
+
+        # Forward both views in ONE pass (concatenated) for speed. Mixed precision
+        # (autocast) uses fp16 where safe, which is faster and uses less GPU memory.
         with torch.autocast(dev, enabled=dev == "cuda"):
             z = model(torch.cat([x1, x2]))
+
+        # Split the outputs back into view 1 and view 2 and compute the contrastive loss.
         loss = nt_xent(z[: len(x1)], z[len(x1):], a.temp)
+
+        # Standard update: clear old gradients, backpropagate (scaled for fp16),
+        # step the optimiser, then step the learning-rate schedule.
         opt.zero_grad(set_to_none=True)
-        scaler.scale(loss).backward(); scaler.step(opt); scaler.update(); sched.step()
+        scaler.scale(loss).backward()
+        scaler.step(opt)
+        scaler.update()
+        sched.step()
         tot += loss.item()
-    tot /= len(dl)
+
+    tot /= len(dl)  # average loss over the epoch
     print(f"epoch {ep} loss {tot:.4f} time {time.time()-t0:.0f}s", flush=True)
     with open(log_path, "a", newline="") as f:
         csv.writer(f).writerow([ep, tot, int(time.time() - t0)])
+
+    # Save ONLY the encoder (the projection head is discarded after pretraining) and
+    # overwrite every epoch, so a crashed session (e.g. Colab) loses little work.
     torch.save({"encoder": model.encoder.state_dict(), "args": vars(a), "epoch": ep}, f"checkpoints/{a.name}.pt")
