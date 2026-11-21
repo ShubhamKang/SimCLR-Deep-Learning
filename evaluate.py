@@ -93,8 +93,10 @@ else:
     # ---------- scratch baseline and fine-tuning (same training code) ----------
     # Encoder + a new linear classifier on top; the whole network is trained.
     model = nn.Sequential(enc, nn.Linear(512, 10)).to(dev)
-    dl = DataLoader(labeled_set(a.data, "train", supervised_train_transform(), a.frac, a.seed),
-                    128, shuffle=True, num_workers=4, drop_last=True)
+    train_ds = labeled_set(a.data, "train", supervised_train_transform(), a.frac, a.seed)
+    # With few labels (e.g. --frac 0.01 = 50 images) a batch of 128 plus drop_last would
+    # drop every batch and the model would never train, so cap the batch at the dataset size.
+    dl = DataLoader(train_ds, min(128, len(train_ds)), shuffle=True, num_workers=4, drop_last=True)
     epochs = a.epochs or 100
     # Fine-tuning uses a smaller learning rate than scratch (1e-3) so that it adjusts
     # the pretrained features gently instead of destroying them.
