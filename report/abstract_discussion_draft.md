@@ -18,9 +18,14 @@ Larger batches [helped / did not help] on our budget: accuracy went from [X]% at
 
 ### Does pretraining help when labels are scarce?
 - Compare the gap between SimCLR and the supervised baseline at each label fraction (table [X], figure [X]).
-- Expected pattern: the gap is largest at 1% and 10% labels and smallest at 100%. State whether our numbers follow it.
-- Linear probe vs fine-tune: fine-tuning usually wins when there are enough labels; at 1% the linear probe
-  may be as good or better because fine-tuning overfits 50 images. Say which happened.
+- The gap between the best SimCLR model and the baseline grows as labels get scarcer:
+  +5.8 points at 100%, +17.8 at 20%, +21.2 at 10% and +26.2 at 1%.
+- Linear probe vs fine-tune: fine-tuning is best at 100%, 20% and 10% labels (81.3, 71.2, 65.5%), but at 1%
+  (50 images) the linear probe is clearly better (53.0% vs 43.6%). Training all 11M weights on 50 images
+  overfits, while the frozen encoder keeps the pretrained features intact.
+- At 100% labels the linear probe (72.6%) is below the supervised baseline (75.5%): with 5,000 labels the
+  baseline has enough data, and 50 epochs of pretraining give features that are good but not complete.
+  Fine-tuning still beats the baseline by 5.8 points.
 
 ### Which augmentations matter most on a small budget?
 - Rank augmentations by the accuracy drop when each is removed (leave-one-out runs).
@@ -28,9 +33,10 @@ Larger batches [helped / did not help] on our budget: accuracy went from [X]% at
 - Link to SimCLR (Chen et al., 2020): the paper found crop + colour jitter to be the key combination,
   because without colour jitter two crops of the same image can be matched by their colour histogram alone.
   State whether our short-schedule results agree.
-- Cost: all augmentations run on the CPU. On Colab (2 cores) data loading, not the GPU, limited speed
-  (about 8 minutes per epoch on 100k images). Blur is the most expensive augmentation; if it adds little
-  accuracy, dropping it is a cheap way to save time.
+- Cost: all augmentations run on the CPU, so data loading, not the GPU, limited speed. One epoch over
+  100k images took about 3.8 minutes on Kaggle (4 CPU cores) and about 8 minutes on Colab (2 cores).
+  In the ablation logs, runs without crop or with fewer augmentations finished faster; compare the
+  seconds per epoch in results/logs/pretrain_abl_*.csv to say which augmentation costs the most.
 
 ### Batch size
 - Larger batches give more negatives per step. Report accuracy, time per run and GPU memory for 64/128/256/512.

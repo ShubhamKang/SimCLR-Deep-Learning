@@ -45,7 +45,7 @@ STL-10 test accuracy (8,000 images), ResNet-18, one seed. SimCLR pretrained for 
 Augmentation and batch-size ablations (20 epochs, 20k images, linear probe at 100% labels):
 `results/aug_ablation.png`, `results/batchsize_ablation.png`, all numbers in `results/all_results.csv`.
 
-Pretrained encoder: `full.pt` (Google Drive link: TO_ADD). Place it in `checkpoints/` to rerun `scripts/run_main_eval.sh`.
+Pretrained encoder: `full.pt` (Google Drive: https://drive.google.com/drive/folders/1veJxafKzobR7LPazS4YUByPjgdwKbo9p). Place it in `checkpoints/` to rerun `scripts/run_main_eval.sh`.
 
 ## Contributions
 - Shubham Kang: SimCLR implementation, pretraining, augmentation ablation, analysis
