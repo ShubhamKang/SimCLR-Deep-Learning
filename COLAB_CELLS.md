@@ -27,3 +27,17 @@
 ```
 !python scripts/run_ablation.py --who shubham --aug only_color crop_color no_gray no_blur no_flip none
 ```
+
+## Public pretrained checkpoint (backup / comparison, about 1h on Colab)
+Evaluates the published SimCLR ResNet-18 trained on STL-10 for 100 epochs by sthalles/SimCLR (MIT licence).
+Credit it in the report as an external checkpoint; it is a comparison, not our own pretraining.
+```
+!git clone https://github.com/ShubhamKang/SimCLR-Deep-Learning.git
+%cd SimCLR-Deep-Learning
+!pip install -q -r requirements.txt gdown
+!gdown 14_nH2FkyKbt61cieQDiSbBVNP8-gtwgF -O public.zip && unzip -o public.zip -d public
+!mkdir -p checkpoints && python scripts/convert_public_checkpoint.py public/checkpoint_0100.pth.tar checkpoints/public_sthalles.pt
+!for f in 1.0 0.2 0.1 0.01; do python evaluate.py --mode linear --ckpt checkpoints/public_sthalles.pt --frac $f --tag public_sthalles --no_normalize; done
+!for f in 0.1 0.01; do python evaluate.py --mode finetune --ckpt checkpoints/public_sthalles.pt --frac $f --tag public_sthalles --no_normalize; done
+!cat results/results.csv
+```

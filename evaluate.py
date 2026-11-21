@@ -31,8 +31,11 @@ p.add_argument("--epochs", type=int, default=None, help="override default epochs
 p.add_argument("--lr", type=float, default=None, help="override default learning rate")
 p.add_argument("--seed", type=int, default=0, help="changes which labelled images are picked and the init")
 p.add_argument("--data", default="data")
+p.add_argument("--no_normalize", action="store_true",
+               help="skip mean/std normalisation (for the public sthalles checkpoint, trained without it)")
 a = p.parse_args()
 torch.manual_seed(a.seed)
+norm = not a.no_normalize  # True for our own checkpoints, False for the public one
 dev = "cuda" if torch.cuda.is_available() else "cpu"
 
 # ---------------- build the encoder ----------------
@@ -55,7 +58,7 @@ def acc(model, dl):
 
 
 # The test set is the same for every experiment, so numbers are directly comparable.
-test_dl = DataLoader(labeled_set(a.data, "test", test_transform()), 512, num_workers=4)
+test_dl = DataLoader(labeled_set(a.data, "test", test_transform(norm)), 512, num_workers=4)
 
 if a.mode == "linear":
     # ---------- linear probe ----------
@@ -71,7 +74,7 @@ if a.mode == "linear":
 
     # Features are computed once with no augmentation (the encoder is frozen anyway),
     # which makes the probe very fast to train.
-    ftr, ytr = feats(DataLoader(labeled_set(a.data, "train", test_transform(), a.frac, a.seed), 512, num_workers=4))
+    ftr, ytr = feats(DataLoader(labeled_set(a.data, "train", test_transform(norm), a.frac, a.seed), 512, num_workers=4))
     fte, yte = feats(test_dl)
 
     # Standardise each feature using TRAIN statistics only (no test leakage).
@@ -93,7 +96,7 @@ else:
     # ---------- scratch baseline and fine-tuning (same training code) ----------
     # Encoder + a new linear classifier on top; the whole network is trained.
     model = nn.Sequential(enc, nn.Linear(512, 10)).to(dev)
-    train_ds = labeled_set(a.data, "train", supervised_train_transform(), a.frac, a.seed)
+    train_ds = labeled_set(a.data, "train", supervised_train_transform(normalize=norm), a.frac, a.seed)
     # With few labels (e.g. --frac 0.01 = 50 images) a batch of 128 plus drop_last would
     # drop every batch and the model would never train, so cap the batch at the dataset size.
     dl = DataLoader(train_ds, min(128, len(train_ds)), shuffle=True, num_workers=4, drop_last=True)
