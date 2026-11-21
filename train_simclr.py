@@ -33,6 +33,7 @@ p.add_argument("--subset", type=int, default=None, help="use only N unlabelled i
 p.add_argument("--data", default="data", help="folder where STL-10 is stored / downloaded")
 p.add_argument("--workers", type=int, default=4, help="CPU processes that prepare augmented images")
 p.add_argument("--seed", type=int, default=0)
+p.add_argument("--out_dir", default=".", help="where checkpoints/ and results/logs/ are written (Kaggle: /kaggle/working)")
 a = p.parse_args()
 
 # ---------------- setup ----------------
@@ -52,9 +53,11 @@ sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.epochs * len(dl))
 # GradScaler is needed for mixed precision (fp16) on GPU; it is disabled on CPU.
 scaler = torch.amp.GradScaler(enabled=dev == "cuda")
 
-os.makedirs("checkpoints", exist_ok=True)
-os.makedirs("results/logs", exist_ok=True)
-log_path = f"results/logs/pretrain_{a.name}.csv"
+ckpt_dir = os.path.join(a.out_dir, "checkpoints")   # encoder weights are saved here
+log_dir = os.path.join(a.out_dir, "results", "logs")  # per-epoch loss CSV is saved here
+os.makedirs(ckpt_dir, exist_ok=True)
+os.makedirs(log_dir, exist_ok=True)
+log_path = os.path.join(log_dir, f"pretrain_{a.name}.csv")
 with open(log_path, "w", newline="") as f:
     csv.writer(f).writerow(["epoch", "loss", "seconds"])  # header; one row is added per epoch
 
@@ -90,4 +93,4 @@ for ep in range(1, a.epochs + 1):
 
     # Save ONLY the encoder (the projection head is discarded after pretraining) and
     # overwrite every epoch, so a crashed session (e.g. Colab) loses little work.
-    torch.save({"encoder": model.encoder.state_dict(), "args": vars(a), "epoch": ep}, f"checkpoints/{a.name}.pt")
+    torch.save({"encoder": model.encoder.state_dict(), "args": vars(a), "epoch": ep}, os.path.join(ckpt_dir, f"{a.name}.pt"))
