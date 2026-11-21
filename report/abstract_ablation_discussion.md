@@ -8,7 +8,7 @@ data augmentations matter most when compute is limited. Using STL-10, we pretrai
 100,000 unlabelled images for 50 epochs on a single GPU, then train classifiers on 100%, 20%, 10% and 1%
 of the 5,000 labelled training images. With 10% of the labels, a supervised ResNet-18 trained from scratch
 reaches 44.3% test accuracy, while a linear probe on the SimCLR encoder reaches 65.2% and fine-tuning reaches
-65.5%. With only 1% of the labels (50 images), the linear probe reaches 53.0%, double the baseline's 26.8%.
+65.5%. With only 1% of the labels (50 images), the linear probe reaches 53.1%, double the baseline's 26.8%.
 An ablation over five augmentations on a short 20-epoch schedule shows that random resized crop matters most:
 removing it lowers linear-probe accuracy from 57.0% to 38.2%, close to using no augmentation at all (36.9%).
 Colour jitter (-7.0 points) and grayscale (-5.8) come next, while flip and blur have no measurable benefit on
@@ -52,7 +52,7 @@ All augmentations on, same 20 epochs and 20,000 images. The batch-256 point is t
 - Yes, and more so the fewer labels there are. The gap between the best SimCLR model and the baseline is
   +5.8 points at 100% labels, +17.8 at 20%, +21.2 at 10% and +26.2 at 1% (results/labels_vs_acc.png).
 - Linear probe vs fine-tune: fine-tuning is best at 100%, 20% and 10% labels (81.3, 71.2, 65.5%), but at 1%
-  (50 images) the linear probe is clearly better (53.0% vs 43.6%). Training all 11M weights on 50 images
+  (50 images) the linear probe is clearly better (53.1% vs 43.6%). Training all 11M weights on 50 images
   overfits, while the frozen encoder keeps the pretrained features intact.
 - At 100% labels the linear probe (72.6%) is below the supervised baseline (75.5%): with 5,000 labels the
   baseline has enough data, and 50 epochs of pretraining give useful but incomplete features.

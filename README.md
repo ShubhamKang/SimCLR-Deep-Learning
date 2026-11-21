@@ -38,7 +38,7 @@ STL-10 test accuracy (8,000 images), ResNet-18, one seed. SimCLR pretrained for 
 | 100% (5,000) | 75.5 | 72.6 | **81.3** |
 | 20% (1,000) | 53.4 | 68.6 | **71.2** |
 | 10% (500) | 44.3 | 65.2 | **65.5** |
-| 1% (50) | 26.8 | **53.0** | 43.6 |
+| 1% (50) | 26.8 | **53.1** | 43.6 |
 
 ![Accuracy vs labels](results/labels_vs_acc.png)
 
