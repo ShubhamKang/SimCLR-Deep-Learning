@@ -1,5 +1,5 @@
 {
-  "id": "YOUR_KAGGLE_USERNAME/simclr-pretrain-full",
+  "id": "shubhamkang/simclr-pretrain-full",
   "title": "simclr-pretrain-full",
   "code_file": "run_pretrain.py",
   "language": "python",
