@@ -67,3 +67,12 @@ if len(bs):
 
 # ---- 5. summary table for the report ----
 print(df.groupby(["tag", "mode", "frac"]).acc.mean().round(1).to_string())
+
+# ---- 6. Figure 4: pretraining loss of the main 50-epoch run ----
+import os
+if os.path.exists("results/logs/pretrain_full.csv"):
+    lg = pd.read_csv("results/logs/pretrain_full.csv")
+    fig, ax = plt.subplots(figsize=(5.5, 3.2))
+    ax.plot(lg.epoch, lg.loss)
+    ax.set_xlabel("Epoch"); ax.set_ylabel("NT-Xent loss")
+    fig.tight_layout(); fig.savefig("results/pretrain_loss.png", dpi=200)

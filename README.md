@@ -27,7 +27,7 @@ All results append to `results/results.csv`; pretraining loss logs go to `result
 ## Layout
 - `src/` augmentations (on/off flags), data and label subsets, ResNet-18 + projection head, NT-Xent loss
 - `train_simclr.py` pretraining; `evaluate.py` scratch / linear probe / fine-tune
-- `scripts/` experiment runners; `report/` final report
+- `scripts/` experiment runners; `report/` final report (`report/main.pdf`, source `report/main.tex`, build with `tectonic main.tex` or `pdflatex`)
 
 ## Results
 STL-10 test accuracy (8,000 images), ResNet-18, one seed. SimCLR pretrained for 50 epochs on the
