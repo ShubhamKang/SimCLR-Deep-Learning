@@ -12,6 +12,7 @@ See [TASKS.md](TASKS.md) for who does what.
 pip install -r requirements.txt
 ```
 STL-10 downloads automatically into `data/`.
+The runs above were done on Kaggle with the launchers in `kaggle/`, `kaggle_eval/`, `kaggle_ablation/` and `kaggle_ablation2/`.
 
 ## Reproduce
 ```
@@ -29,7 +30,22 @@ All results append to `results/results.csv`; pretraining loss logs go to `result
 - `scripts/` experiment runners; `report/` final report
 
 ## Results
-(to be filled in)
+STL-10 test accuracy (8,000 images), ResNet-18, one seed. SimCLR pretrained for 50 epochs on the
+100k unlabelled images (batch 256, one Kaggle T4, about 3.1 hours).
+
+| Labels used | Supervised from scratch | SimCLR + linear probe | SimCLR + fine-tune |
+|---|---|---|---|
+| 100% (5,000) | 75.5 | 72.6 | **81.3** |
+| 20% (1,000) | 53.4 | 68.6 | **71.2** |
+| 10% (500) | 44.3 | 65.2 | **65.5** |
+| 1% (50) | 26.8 | **53.0** | 43.6 |
+
+![Accuracy vs labels](results/labels_vs_acc.png)
+
+Augmentation and batch-size ablations (20 epochs, 20k images, linear probe at 100% labels):
+`results/aug_ablation.png`, `results/batchsize_ablation.png`, all numbers in `results/all_results.csv`.
+
+Pretrained encoder: `full.pt` (Google Drive link: TO_ADD). Place it in `checkpoints/` to rerun `scripts/run_main_eval.sh`.
 
 ## Contributions
 - Shubham Kang: SimCLR implementation, pretraining, augmentation ablation, analysis

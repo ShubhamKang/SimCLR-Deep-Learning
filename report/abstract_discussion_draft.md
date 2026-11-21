@@ -5,10 +5,11 @@ Replace every [X] with the real number from results/ once all runs are done.
 Labelled data is expensive, while unlabelled images are easy to collect. We study whether self-supervised
 contrastive pretraining with SimCLR lets a classifier reach good accuracy with far fewer labels, and which
 data augmentations matter most when compute is limited. Using STL-10, we pretrain a ResNet-18 encoder on
-100,000 unlabelled images for [X] epochs on a single GPU, then train classifiers on 100%, 20%, 10% and 1%
+100,000 unlabelled images for 50 epochs on a single GPU, then train classifiers on 100%, 20%, 10% and 1%
 of the 5,000 labelled training images. With 10% of the labels, a supervised ResNet-18 trained from scratch
-reaches 44.3% test accuracy, while a linear probe on the SimCLR encoder reaches [X]% and fine-tuning reaches
-[X]%. An ablation over five augmentations, on a short 20-epoch schedule, shows that [random resized crop and
+reaches 44.3% test accuracy, while a linear probe on the SimCLR encoder reaches 65.2% and fine-tuning reaches
+65.5%. With only 1% of the labels (50 images), the linear probe reaches 53.0%, double the
+baseline's 26.8%. An ablation over five augmentations, on a short 20-epoch schedule, shows that [random resized crop and
 colour jitter] account for most of the benefit: removing crop lowers linear-probe accuracy by [X] points and
 removing colour jitter by [X] points, while flip, grayscale and blur each change it by less than [X] points.
 Larger batches [helped / did not help] on our budget: accuracy went from [X]% at batch size 64 to [X]% at 512.
@@ -36,7 +37,7 @@ Larger batches [helped / did not help] on our budget: accuracy went from [X]% at
 - Note that with a fixed number of epochs, larger batches also mean fewer optimisation steps.
 
 ### Limitations
-- Short pretraining ([X] epochs vs 100 to 1,000 in the paper), so absolute accuracies are lower than published ones.
+- Short pretraining (50 epochs vs 100 to 1,000 in the paper), so absolute accuracies are lower than published ones.
 - Ablations use 20 epochs on a 20,000-image subset and one seed, so differences under about [1-2] points
   may be noise.
 - AdamW instead of the LARS optimiser and the large batches (up to 8,192) used in the paper.
@@ -44,6 +45,6 @@ Larger batches [helped / did not help] on our budget: accuracy went from [X]% at
 
 ## Conclusion
 SimCLR pretraining on unlabelled STL-10 images improved accuracy over a supervised baseline at every label
-fraction we tested, with the largest gain when labels were scarcest ([X] points at 10% labels). On a small
+fraction we tested (fine-tuning at 100%, 20% and 10%; the linear probe at 1%), with the largest gain when labels were scarcest (+20.9 points at 10% labels, +26.2 at 1%). On a small
 compute budget, [crop and colour jitter] are the augmentations that matter; the others can be dropped with
 little loss. Future work: longer pretraining, more seeds for the ablations, and stronger evaluation protocols.
