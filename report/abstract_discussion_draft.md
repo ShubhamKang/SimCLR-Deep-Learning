@@ -51,6 +51,6 @@ Larger batches [helped / did not help] on our budget: accuracy went from [X]% at
 
 ## Conclusion
 SimCLR pretraining on unlabelled STL-10 images improved accuracy over a supervised baseline at every label
-fraction we tested (fine-tuning at 100%, 20% and 10%; the linear probe at 1%), with the largest gain when labels were scarcest (+20.9 points at 10% labels, +26.2 at 1%). On a small
+fraction we tested (fine-tuning at 100%, 20% and 10%; the linear probe at 1%), with the largest gain when labels were scarcest (+21.2 points at 10% labels, +26.2 at 1%). On a small
 compute budget, [crop and colour jitter] are the augmentations that matter; the others can be dropped with
 little loss. Future work: longer pretraining, more seeds for the ablations, and stronger evaluation protocols.
