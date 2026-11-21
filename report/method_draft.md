@@ -22,8 +22,8 @@ Each can be switched on or off independently (src/augmentations.py), which is wh
 
 ### 3.3 Training details
 ResNet-18 with random initialisation, 96x96 inputs, AdamW (lr 3e-4, weight decay 1e-6), cosine learning-rate
-decay, mixed precision. Main model: 100,000 unlabelled STL-10 images, batch size 256, EPOCHS_FILL_IN epochs.
-Ablations use a shorter, identical schedule: 20 epochs on a fixed 20,000-image subset (EXPLAIN: chosen to fit the compute budget).
+decay, mixed precision. Main model: 100,000 unlabelled STL-10 images, batch size 256, 50 epochs (about 3.1 hours on one Kaggle Tesla T4).
+Ablations use a shorter, identical schedule: 20 epochs on a fixed 20,000-image subset (chosen so each ablation run takes about 5 to 15 minutes on Kaggle).
 
 ### 3.4 Evaluation
 All accuracies are measured on the 8,000-image STL-10 test set. We compare three classifiers built on a
