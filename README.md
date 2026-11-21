@@ -43,7 +43,11 @@ STL-10 test accuracy (8,000 images), ResNet-18, one seed. SimCLR pretrained for 
 ![Accuracy vs labels](results/labels_vs_acc.png)
 
 Augmentation and batch-size ablations (20 epochs, 20k images, linear probe at 100% labels):
-`results/aug_ablation.png`, `results/batchsize_ablation.png`, all numbers in `results/all_results.csv`.
+
+![Augmentation ablation](results/aug_ablation.png)
+![Batch size](results/batchsize_ablation.png)
+
+Random resized crop matters most (removing it: 57.0 to 38.2%), then colour jitter (-7.0) and grayscale (-5.8); flip and blur gave no measurable benefit. Smaller batches did better at a fixed 20 epochs (64: 59.3%, 512: 53.2%). All numbers: `results/all_results.csv`.
 
 Pretrained encoder: `full.pt` (Google Drive: https://drive.google.com/drive/folders/19Jx_VJRAVgrmFSTTiKfxzuYg_Dki9dWL). Place it in `checkpoints/` to rerun `scripts/run_main_eval.sh`.
 

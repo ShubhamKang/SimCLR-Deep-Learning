@@ -11,6 +11,13 @@ finetune,simclr_full,1.0,0,0.813,81.3
 finetune,simclr_full,0.2,0,0.7124,71.24000000000001
 finetune,simclr_full,0.1,0,0.6546,65.46
 finetune,simclr_full,0.01,0,0.4364,43.64
+linear,bs_64,1.0,0,0.5929,59.29
+linear,bs_128,1.0,0,0.5819,58.19
+linear,bs_512,1.0,0,0.5321,53.21
+linear,abl_full,1.0,0,0.57,56.99999999999999
+linear,abl_no_crop,1.0,0,0.382,38.2
+linear,abl_no_color,1.0,0,0.4999,49.99
+linear,abl_only_crop,1.0,0,0.4505,45.050000000000004
 linear,abl_only_color,1.0,0,0.4268,42.68
 linear,abl_crop_color,1.0,0,0.5296,52.959999999999994
 linear,abl_no_gray,1.0,0,0.5119,51.190000000000005
