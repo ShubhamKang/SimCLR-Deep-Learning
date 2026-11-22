@@ -10,6 +10,18 @@ Outputs (in results/):
   aug_ablation.png         linear-probe accuracy for each augmentation setting
   batchsize_ablation.png   linear-probe accuracy vs batch size
 If a setting was run with several seeds, the mean is used.
+
+QUESTIONS THIS FILE ANSWERS
+Q: Why does the batch-size figure show two lines?
+   The batch-size ablation was run twice with identical settings and seed: on Colab (Nidhi,
+   report Table 4) and on Kaggle. Showing both makes the run-to-run variation visible:
+   they agree within 0.7 points at 128/256/512 but differ by about 10 points at 64.
+Q: Where does the batch-256 point of the Kaggle run come from?
+   From the "full" augmentation run (abl_full, 57.0%), which has exactly the same settings
+   as a batch-256 run, so it was not trained twice.
+Q: Why a log scale for the label fraction?
+   The fractions (1%, 10%, 20%, 100%) span two orders of magnitude; on a linear axis the
+   1% and 10% points would be squeezed together.
 """
 import glob
 import pandas as pd

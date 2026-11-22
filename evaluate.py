@@ -12,7 +12,33 @@ Accuracy is always measured on the full 8,000-image test set.
 Every run appends one row to results/results.csv.
 
 Example:
-  python evaluate.py --mode linear --ckpt checkpoints/full.pt --frac 0.1 --tag full
+  python evaluate.py --mode linear --ckpt checkpoints/full.pt --frac 0.1 --tag simclr_full
+
+Results in the report (Table 1, test accuracy %):
+  labels   scratch  linear  finetune
+  100%      75.5     72.6     81.3
+  20%       53.4     68.6     71.2
+  10%       44.3     65.2     65.5
+  1%        26.8     53.1     43.6
+
+QUESTIONS THIS FILE ANSWERS
+Q: How is the comparison kept fair?
+   Same ResNet-18, same labelled images (seed 0, class-balanced), same 8,000 test images.
+   Scratch and finetune share the same training recipe (100 epochs, AdamW, batch 128,
+   cosine decay, light augmentation); only the starting weights and the learning rate differ.
+Q: Why does the linear probe beat fine-tuning at 1% labels (53.1 vs 43.6)?
+   With 50 images, fine-tuning all ~11 million weights for 100 epochs overfits and damages the
+   pretrained features. The probe trains only 512*10 + 10 = 5,130 numbers, so it cannot
+   overfit as badly.
+Q: Why is the linear probe below the baseline at 100% (72.6 vs 75.5)?
+   With 5,000 labels the baseline has enough data to learn task-specific features end to
+   end, while the probe uses frozen features from only 50 epochs of pretraining.
+   Fine-tuning closes the gap (81.3).
+Q: Why use the linear probe to evaluate the ablations?
+   It measures the learned features directly (encoder frozen) and is cheap, so it can be
+   repeated for every ablation run; fine-tuning could hide weak features.
+Q: What was the 1% bug?
+   See the comment above the DataLoader in the fine-tune/scratch branch below.
 """
 import argparse, csv, os
 import torch, torch.nn as nn
@@ -27,7 +53,7 @@ p.add_argument("--mode", choices=["scratch", "linear", "finetune"], required=Tru
 p.add_argument("--ckpt", default=None, help="SimCLR checkpoint (needed for linear and finetune)")
 p.add_argument("--frac", type=float, default=1.0, help="fraction of training labels to use")
 p.add_argument("--tag", default="", help="label for this run in results.csv, used by make_plots.py")
-p.add_argument("--epochs", type=int, default=None, help="override default epochs")
+p.add_argument("--epochs", type=int, default=None, help="override default epochs")  # defaults: 300 probe steps, 100 epochs otherwise
 p.add_argument("--lr", type=float, default=None, help="override default learning rate")
 p.add_argument("--seed", type=int, default=0, help="changes which labelled images are picked and the init")
 p.add_argument("--data", default="data")
@@ -57,7 +83,8 @@ def acc(model, dl):
     return correct / n
 
 
-# The test set is the same for every experiment, so numbers are directly comparable.
+# The test set is the same for every experiment (all 8,000 images, no augmentation),
+# so numbers are directly comparable.
 test_dl = DataLoader(labeled_set(a.data, "test", test_transform(norm)), 512, num_workers=4)
 
 if a.mode == "linear":
@@ -77,12 +104,17 @@ if a.mode == "linear":
     ftr, ytr = feats(DataLoader(labeled_set(a.data, "train", test_transform(norm), a.frac, a.seed), 512, num_workers=4))
     fte, yte = feats(test_dl)
 
-    # Standardise each feature using TRAIN statistics only (no test leakage).
+    # Standardise each of the 512 features (subtract mean, divide by std) so they are on the
+    # same scale, which makes the linear layer train quickly and stably. The mean and std
+    # come from the TRAINING features only: using test statistics would leak information
+    # from the test set into training.
     mu, sd = ftr.mean(0), ftr.std(0) + 1e-6
     ftr, fte = ((ftr - mu) / sd).to(dev), ((fte - mu) / sd).to(dev)
     ytr = ytr.to(dev)
 
-    # One linear layer 512 -> 10 classes, trained with full-batch Adam.
+    # One linear layer 512 -> 10 classes, trained with full-batch Adam: every step uses ALL
+    # training features at once (at most 5,000 x 512 numbers, which fits in memory), for
+    # 300 steps, learning rate 1e-3, weight decay 1e-4. The encoder is never updated here.
     clf = nn.Linear(512, 10).to(dev)
     opt = torch.optim.Adam(clf.parameters(), lr=a.lr or 1e-3, weight_decay=1e-4)
     for _ in range(a.epochs or 300):
@@ -90,6 +122,7 @@ if a.mode == "linear":
         opt.zero_grad()
         loss.backward()
         opt.step()
+    # Test accuracy = share of test images whose highest-scoring class is the true class.
     result = (clf(fte).argmax(1).cpu() == yte).float().mean().item()
 
 else:
@@ -97,10 +130,13 @@ else:
     # Encoder + a new linear classifier on top; the whole network is trained.
     model = nn.Sequential(enc, nn.Linear(512, 10)).to(dev)
     train_ds = labeled_set(a.data, "train", supervised_train_transform(normalize=norm), a.frac, a.seed)
-    # With few labels (e.g. --frac 0.01 = 50 images) a batch of 128 plus drop_last would
-    # drop every batch and the model would never train, so cap the batch at the dataset size.
+    # THE 1% BUG (report Section 4.6): with --frac 0.01 there are only 50 images, fewer than
+    # the batch size of 128. drop_last=True throws away the last incomplete batch, and here
+    # that was the ONLY batch, so the model got zero updates and stayed at chance level
+    # (about 10%). Fix: cap the batch size at the dataset size, so every fraction trains
+    # for the full 100 epochs. The reported 1% baseline (26.8%) uses this fix.
     dl = DataLoader(train_ds, min(128, len(train_ds)), shuffle=True, num_workers=4, drop_last=True)
-    epochs = a.epochs or 100
+    epochs = a.epochs or 100  # 100 epochs over the labelled subset for both scratch and finetune
     # Fine-tuning uses a smaller learning rate than scratch (1e-3) so that it adjusts
     # the pretrained features gently instead of destroying them.
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr or (1e-3 if a.mode == "scratch" else 3e-4), weight_decay=1e-4)
@@ -116,6 +152,8 @@ else:
     result = acc(model, test_dl)
 
 # ---------------- record the result ----------------
+# One row per run in results/results.csv: mode, tag, label fraction, seed, test accuracy.
+# make_plots.py reads these files to build the report tables and figures.
 print(f"{a.mode} tag={a.tag} frac={a.frac} seed={a.seed} test_acc={result:.4f}")
 os.makedirs("results", exist_ok=True)
 new_file = not os.path.exists("results/results.csv")

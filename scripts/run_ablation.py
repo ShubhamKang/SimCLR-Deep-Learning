@@ -9,6 +9,17 @@ Examples (run from the repo root):
   python scripts/run_ablation.py --who nidhi --bs 64 128 512
 
 Output: results/ablation_<who>.csv (rows with tags abl_* or bs_*). Send or commit this file.
+
+QUESTIONS THIS FILE ANSWERS
+Q: Why 20 epochs on 20,000 images for every ablation?
+   A full run (50 epochs, 100,000 images) took 3.1 hours; the ablations needed 10
+   augmentation settings and 3 extra batch sizes. Using one identical short schedule keeps
+   every run comparable: only the augmentations or the batch size change.
+Q: Why leave-one-out AND single augmentations?
+   Leave-one-out (no_crop, no_color, ...) measures how much accuracy drops when one
+   augmentation is removed from the full set. Single ones (only_crop, only_color) and the
+   pair crop_color show what each contributes on its own, as in the SimCLR paper.
+Q: How is each run evaluated?  Linear probe on 100% of the labels (see evaluate.py).
 """
 import argparse, csv, os, subprocess, sys
 

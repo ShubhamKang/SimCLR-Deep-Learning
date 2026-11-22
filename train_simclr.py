@@ -1,16 +1,35 @@
-"""SimCLR pretraining on the STL-10 unlabelled images.
+"""SimCLR pretraining on the STL-10 unlabelled images (report Sections 3 and 4.5).
 
 What this script does, step by step:
   1. Loads unlabelled images; each item is two random augmented views of one image.
   2. Passes both views through the encoder + projection head.
   3. Computes the NT-Xent contrastive loss (views of the same image should match).
   4. Updates the network, and saves the encoder after every epoch.
-
 No labels are used anywhere in this file.
 
-Examples:
-  python train_simclr.py --name full --epochs 100 --batch_size 256
-  python train_simclr.py --name no_blur --augs crop flip color gray --epochs 20 --subset 20000
+How the report's runs were made with this script:
+  Main model (Kaggle T4, 3.1 hours, about 226 s per epoch):
+    python train_simclr.py --name full --epochs 50 --batch_size 256
+  Augmentation ablation, e.g. the "no_blur" setting (20 epochs, 20,000 images):
+    python train_simclr.py --name abl_no_blur --augs crop flip color gray --epochs 20 --subset 20000
+  Batch-size ablation, e.g. batch 512:
+    python train_simclr.py --name bs_512 --epochs 20 --subset 20000 --batch_size 512
+
+QUESTIONS THIS FILE ANSWERS
+Q: Which optimiser and settings?  AdamW, learning rate 3e-4, weight decay 1e-6, cosine
+   learning-rate decay to ~0, mixed precision, temperature 0.5, batch 256, 50 epochs.
+Q: Why AdamW and not LARS (used in the SimCLR paper)?  LARS is designed for very large
+   batches (4,096-8,192) on many GPUs. With batches up to 512 on one GPU, AdamW is a standard,
+   stable choice. The report lists this difference as a limitation.
+Q: Why 50 epochs?  It fit the compute budget (3.1 hours), and the loss had nearly flattened
+   (5.12 -> 4.58, less than 0.01 change over the last ten epochs). The paper trains for
+   hundreds of epochs, so longer pretraining is future work.
+Q: Why the same learning rate for every batch size?  To change only one thing at a time.
+   The report notes that linear learning-rate scaling (Goyal et al.) was not applied, which
+   may partly explain why large batches did worse.
+Q: Why was training speed limited by the CPU?  The augmentations are computed by CPU worker
+   processes (--workers) before the GPU sees the images; with 2-4 CPU cores the GPU waits.
+   This is why run time barely changed with batch size (31-35 minutes on Colab).
 """
 import argparse, csv, os, time
 import torch
@@ -25,9 +44,9 @@ from src.losses import nt_xent
 p = argparse.ArgumentParser()
 p.add_argument("--name", required=True, help="run name; used for the checkpoint and log file names")
 p.add_argument("--augs", nargs="*", default=ALL_AUGS, help="augmentations to switch ON, from: " + " ".join(ALL_AUGS))
-p.add_argument("--epochs", type=int, default=100)
+p.add_argument("--epochs", type=int, default=100)  # the report's main run used --epochs 50
 p.add_argument("--batch_size", type=int, default=256, help="images per batch; each gives 2 views, so the network sees 2x this")
-p.add_argument("--lr", type=float, default=3e-4)
+p.add_argument("--lr", type=float, default=3e-4)  # same value for every run, including all batch sizes
 p.add_argument("--temp", type=float, default=0.5, help="loss temperature")
 p.add_argument("--subset", type=int, default=None, help="use only N unlabelled images (for fast ablations)")
 p.add_argument("--data", default="data", help="folder where STL-10 is stored / downloaded")
@@ -38,20 +57,29 @@ p.add_argument("--out_dir", default=".", help="where checkpoints/ and results/lo
 a = p.parse_args()
 
 # ---------------- setup ----------------
-torch.manual_seed(a.seed)  # reproducible weight initialisation and shuffling
+torch.manual_seed(a.seed)  # reproducible weight initialisation and shuffling (seed 0 in the report)
+# Note: even with a fixed seed, GPU computations and data-loading workers are not perfectly
+# deterministic. Two identical batch-size runs differed by about 10 points at batch 64
+# (report Section 8), which is why only large effects should be trusted.
 dev = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Dataset yields (view1, view2). drop_last=True keeps every batch the same size, which
-# keeps the number of negatives per image constant.
+# keeps the number of negatives per image constant (2*batch_size - 2).
+# Number of updates per epoch = images // batch_size, e.g. 20,000 // 512 = 39 and
+# 20,000 // 128 = 156; over 20 epochs that is 780 vs 3,120 updates (report Section 7).
+# pin_memory and persistent_workers only make data transfer to the GPU faster.
 ds = unlabeled_set(a.data, simclr_transform(a.augs), a.subset, a.seed)
 dl = DataLoader(ds, a.batch_size, shuffle=True, drop_last=True, num_workers=a.workers,
                 pin_memory=True, persistent_workers=a.workers > 0)
 
-model = SimCLR().to(dev)
+model = SimCLR().to(dev)  # ResNet-18 encoder + projection head, random initial weights
+# AdamW adapts the step size per weight; the small weight decay (1e-6) gently pulls weights
+# towards zero to reduce overfitting.
 opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-6)
 # Cosine schedule: the learning rate decays smoothly to ~0 over all training steps.
 sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.epochs * len(dl))
-# GradScaler is needed for mixed precision (fp16) on GPU; it is disabled on CPU.
+# GradScaler is needed for mixed precision (fp16) on GPU: it scales the loss up before
+# backpropagation so tiny gradients do not round to zero in 16-bit. Disabled on CPU.
 scaler = torch.amp.GradScaler(enabled=dev == "cuda")
 
 ckpt_dir = os.path.join(a.out_dir, "checkpoints")   # encoder weights are saved here
@@ -110,6 +138,7 @@ for ep in range(start_ep, a.epochs + 1):
 
     # Save ONLY the encoder (the projection head is discarded after pretraining) and
     # overwrite every epoch, so a crashed session (e.g. Colab) loses little work.
+    # This file (checkpoints/full.pt for the main run) is what evaluate.py loads.
     torch.save({"encoder": model.encoder.state_dict(), "args": vars(a), "epoch": ep}, os.path.join(ckpt_dir, f"{a.name}.pt"))
     # Full state for --resume (written after the encoder file so a crash never loses the encoder).
     torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(),
