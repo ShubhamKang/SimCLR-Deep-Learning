@@ -65,17 +65,22 @@ def simclr_transform(augs=ALL_AUGS, size=96, strength=0.5):
     return T.Compose(ops)
 
 
-def test_transform():
+def _finish(normalize):
+    """ToTensor, plus mean/std normalisation unless normalize=False (public checkpoint)."""
+    return [T.ToTensor(), T.Normalize(MEAN, STD)] if normalize else [T.ToTensor()]
+
+
+def test_transform(normalize=True):
     """No randomness. Used for the test set and for extracting features, so that
     accuracy numbers are deterministic and comparable between runs."""
-    return T.Compose([T.ToTensor(), T.Normalize(MEAN, STD)])
+    return T.Compose(_finish(normalize))
 
 
-def supervised_train_transform(size=96):
+def supervised_train_transform(size=96, normalize=True):
     """Light augmentation for supervised training / fine-tuning on the labelled data.
 
     Pad by 8 pixels then crop back (a small random shift) plus a horizontal flip.
     We use the SAME light recipe for the from-scratch baseline and for fine-tuning,
     so the comparison between them is fair.
     """
-    return T.Compose([T.RandomCrop(size, padding=8), T.RandomHorizontalFlip(), T.ToTensor(), T.Normalize(MEAN, STD)])
+    return T.Compose([T.RandomCrop(size, padding=8), T.RandomHorizontalFlip(), *_finish(normalize)])

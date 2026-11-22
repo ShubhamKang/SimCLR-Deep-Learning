@@ -22,15 +22,23 @@ Each can be switched on or off independently (src/augmentations.py), which is wh
 
 ### 3.3 Training details
 ResNet-18 with random initialisation, 96x96 inputs, AdamW (lr 3e-4, weight decay 1e-6), cosine learning-rate
-decay, mixed precision. Main model: 100,000 unlabelled STL-10 images, batch size 256, EPOCHS_FILL_IN epochs.
-Ablations use a shorter, identical schedule: 20 epochs on a fixed 20,000-image subset (EXPLAIN: chosen to fit the compute budget).
+decay, mixed precision. Main model: 100,000 unlabelled STL-10 images, batch size 256, 50 epochs (about 3.1 hours on one Kaggle Tesla T4).
+Ablations use a shorter, identical schedule: 20 epochs on a fixed 20,000-image subset (chosen so each ablation run takes about 5 to 15 minutes on Kaggle).
 
 ### 3.4 Evaluation
-All accuracies are measured on the 8,000-image STL-10 test set. We compare three classifiers built on a
+All accuracies are measured on the 8,000-image STL-10 test set, with one seed (seed 0). We compare three classifiers built on a
 limited number of labels (100%, 20%, 10%, 1% of the 5,000 training labels, class-balanced, same images for every method):
 1. Supervised baseline: ResNet-18 trained from scratch on the labels.
 2. Linear probe: frozen SimCLR encoder with one trained linear layer.
 3. Fine-tuning: SimCLR encoder with all layers trained at a lower learning rate.
+
+Training settings (evaluate.py):
+- Supervised baseline and fine-tuning: 100 epochs, batch size 128 (capped at the number of images for 1% labels),
+  AdamW with weight decay 1e-4 and cosine decay; learning rate 1e-3 from scratch and 3e-4 for fine-tuning.
+  Light augmentation for both: random crop with 8-pixel padding and horizontal flip.
+- Linear probe: 512-d encoder features extracted once without augmentation, standardised with training-set
+  statistics, then a single linear layer trained with full-batch Adam (lr 1e-3, weight decay 1e-4, 300 steps).
+- Ablations are evaluated with the linear probe on 100% of the labels.
 
 ## Placeholders to fill from results
 - Pretraining loss curve: results/logs/pretrain_full.csv

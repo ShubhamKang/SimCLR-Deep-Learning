@@ -1,67 +1,35 @@
-"""Kaggle launcher: augmentation ablation for SimCLR (the project's core question).
+"""Kaggle launcher: Shubham's share of the augmentation ablation.
 
-For each setting below we (1) pretrain SimCLR for a SHORT schedule with only those
-augmentations switched on, then (2) measure a linear probe on 100% of the labels.
-Every setting uses the same schedule, the same unlabelled images and the same seed,
-so differences in accuracy come only from the augmentations.
-
-Results are copied to /kaggle/working after EVERY setting, so a run that is cut off
-still leaves the finished results.
+Runs the six augmentation settings that are NOT assigned to Sandhya, using the same
+scripts/run_ablation.py as everyone else (same 20-epoch / 20k-image schedule), so the
+results can be merged into one table. Kaggle runs this unattended once a GPU is free.
 """
 import os, shutil, subprocess, sys
 
-EPOCHS = 20      # short schedule, identical for every setting
-SUBSET = 20000   # number of unlabelled images used, identical for every setting
-BATCH = 256
-
 REPO_URL = "https://github.com/ShubhamKang/SimCLR-Deep-Learning.git"
-REPO_DIR = "/kaggle/temp/repo"   # scratch space (not saved)
-DATA_DIR = "/kaggle/temp/data"   # STL-10 download (not saved, it is large)
+REPO_DIR = "/kaggle/temp/repo"   # scratch space: code + STL-10 download (not saved)
 OUT_DIR = "/kaggle/working"      # saved as the notebook output
-
-# name -> augmentations that are ON. Most informative settings come first, so if time
-# runs out we still have the key comparisons. "none" = no augmentation except resizing.
-SETTINGS = [
-    ("full",       ["crop", "flip", "color", "gray", "blur"]),
-    ("no_crop",    ["flip", "color", "gray", "blur"]),
-    ("no_color",   ["crop", "flip", "gray", "blur"]),
-    ("only_crop",  ["crop"]),
-    ("only_color", ["color"]),
-    ("crop_color", ["crop", "color"]),
-    ("no_gray",    ["crop", "flip", "color", "blur"]),
-    ("no_blur",    ["crop", "flip", "color", "gray"]),
-    ("no_flip",    ["crop", "color", "gray", "blur"]),
-    ("none",       []),
-]
+SETTINGS = ["only_color", "crop_color", "no_gray", "no_blur", "no_flip", "none"]
 
 
 def run(cmd, cwd=None):
-    """Run a command, show its output live, and raise an error if it fails."""
+    """Run a command, show its output live, and stop if it fails."""
     print("$", " ".join(cmd), flush=True)
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
-# 1. Get the code from GitHub (branch main).
+# 1. Fresh copy of the code from GitHub, and print the GPU model for the report.
 os.makedirs("/kaggle/temp", exist_ok=True)
 run(["rm", "-rf", REPO_DIR])
 run(["git", "clone", "--depth", "1", REPO_URL, REPO_DIR])
 run(["nvidia-smi", "-L"])
 
-# 2. Loop over the settings.
-for name, augs in SETTINGS:
-    tag = f"abl_{name}"
-    # Pretrain. "--augs" with no names after it means every augmentation is off.
-    # --out_dir REPO_DIR keeps checkpoints inside the repo copy so evaluate.py finds them.
-    run([sys.executable, "train_simclr.py", "--name", tag, "--augs", *augs,
-         "--epochs", str(EPOCHS), "--subset", str(SUBSET), "--batch_size", str(BATCH),
-         "--data", DATA_DIR, "--out_dir", REPO_DIR, "--workers", "4"], cwd=REPO_DIR)
-    # Linear probe on all 5000 labels; appends one row to results/results.csv.
-    run([sys.executable, "evaluate.py", "--mode", "linear",
-         "--ckpt", f"{REPO_DIR}/checkpoints/{tag}.pt", "--frac", "1.0",
-         "--tag", tag, "--data", DATA_DIR], cwd=REPO_DIR)
-    # Save progress: copy the results table and the pretraining loss logs to the output.
-    os.makedirs(f"{OUT_DIR}/results/logs", exist_ok=True)
-    shutil.copy(f"{REPO_DIR}/results/results.csv", f"{OUT_DIR}/results/results_ablation.csv")
-    shutil.copy(f"{REPO_DIR}/results/logs/pretrain_{tag}.csv", f"{OUT_DIR}/results/logs/")
-    # Delete the checkpoint (45 MB each) so the output stays small; only results matter here.
-    os.remove(f"{REPO_DIR}/checkpoints/{tag}.pt")
+# 2. One setting at a time, copying the results to the saved output after each one,
+#    so a run that is stopped early still keeps every finished setting.
+os.makedirs(f"{OUT_DIR}/results/logs", exist_ok=True)
+for name in SETTINGS:
+    # --workers 4: Kaggle machines have 4 CPU cores for preparing augmented images.
+    run([sys.executable, "scripts/run_ablation.py", "--who", "shubham", "--aug", name, "--workers", "4"], cwd=REPO_DIR)
+    shutil.copy(f"{REPO_DIR}/results/ablation_shubham.csv", f"{OUT_DIR}/results/")
+    shutil.copy(f"{REPO_DIR}/results/logs/pretrain_abl_{name}.csv", f"{OUT_DIR}/results/logs/")
+    os.remove(f"{REPO_DIR}/checkpoints/abl_{name}.pt")  # 45 MB each, not needed after the probe

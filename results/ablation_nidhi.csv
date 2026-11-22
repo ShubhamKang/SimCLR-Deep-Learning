@@ -1,0 +1,4 @@
+mode,tag,frac,seed,test_acc
+linear,bs_64,1.0,0,0.5929
+linear,bs_128,1.0,0,0.5819
+linear,bs_512,1.0,0,0.5321

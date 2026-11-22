@@ -33,6 +33,7 @@ p.add_argument("--subset", type=int, default=None, help="use only N unlabelled i
 p.add_argument("--data", default="data", help="folder where STL-10 is stored / downloaded")
 p.add_argument("--workers", type=int, default=4, help="CPU processes that prepare augmented images")
 p.add_argument("--seed", type=int, default=0)
+p.add_argument("--resume", action="store_true", help="continue from the last saved epoch if a state file exists in out_dir")
 p.add_argument("--out_dir", default=".", help="where checkpoints/ and results/logs/ are written (Kaggle: /kaggle/working)")
 a = p.parse_args()
 
@@ -58,12 +59,23 @@ log_dir = os.path.join(a.out_dir, "results", "logs")  # per-epoch loss CSV is sa
 os.makedirs(ckpt_dir, exist_ok=True)
 os.makedirs(log_dir, exist_ok=True)
 log_path = os.path.join(log_dir, f"pretrain_{a.name}.csv")
-with open(log_path, "w", newline="") as f:
-    csv.writer(f).writerow(["epoch", "loss", "seconds"])  # header; one row is added per epoch
+# The state file holds EVERYTHING needed to continue training after a crash or disconnect:
+# full model, optimiser, learning-rate schedule, grad scaler and the last finished epoch.
+state_path = os.path.join(ckpt_dir, f"{a.name}_state.pt")
+start_ep = 1
+if a.resume and os.path.exists(state_path):
+    st = torch.load(state_path, map_location=dev)
+    model.load_state_dict(st["model"]); opt.load_state_dict(st["opt"])
+    sched.load_state_dict(st["sched"]); scaler.load_state_dict(st["scaler"])
+    start_ep = st["epoch"] + 1
+    print(f"Resuming from epoch {start_ep}", flush=True)
+else:
+    with open(log_path, "w", newline="") as f:
+        csv.writer(f).writerow(["epoch", "loss", "seconds"])  # header; one row is added per epoch
 
 # ---------------- training loop ----------------
 t0 = time.time()
-for ep in range(1, a.epochs + 1):
+for ep in range(start_ep, a.epochs + 1):
     model.train()
     tot = 0
     for x1, x2 in tqdm(dl, desc=f"ep {ep}/{a.epochs}", leave=False):
@@ -94,3 +106,6 @@ for ep in range(1, a.epochs + 1):
     # Save ONLY the encoder (the projection head is discarded after pretraining) and
     # overwrite every epoch, so a crashed session (e.g. Colab) loses little work.
     torch.save({"encoder": model.encoder.state_dict(), "args": vars(a), "epoch": ep}, os.path.join(ckpt_dir, f"{a.name}.pt"))
+    # Full state for --resume (written after the encoder file so a crash never loses the encoder).
+    torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(),
+                "scaler": scaler.state_dict(), "epoch": ep}, state_path)

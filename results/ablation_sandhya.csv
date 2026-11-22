@@ -1,0 +1,5 @@
+mode,tag,frac,seed,test_acc
+linear,abl_full,1.0,0,0.5700
+linear,abl_no_crop,1.0,0,0.3820
+linear,abl_no_color,1.0,0,0.4999
+linear,abl_only_crop,1.0,0,0.4505

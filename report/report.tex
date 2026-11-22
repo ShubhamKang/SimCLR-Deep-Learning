@@ -21,37 +21,46 @@
 \newcommand{\num}{0}
 \setcounter{page}{1}
 \newcommand{\begpag}{\thepage}
-\newcommand{\finpag}{10}
+\newcommand{\finpag}{12}
 \newcommand{\yearp}{2026}
 %------------------------------------------------------------------
 \renewcommand{\thefootnote}{\fnsymbol{footnote}}
 
+% Title block from elcvia.sty without the journal line ("Electronic Letters ... vol(num)")
+% and with a page number on the first page.
+\makeatletter
+\def\@maketitle{%
+  \newpage
+  \thispagestyle{plain}%
+  \vskip 1em
+  \begin{center}
+    {\LARGE\bf \@title \par}
+    \vskip 1.5em
+    {\large \lineskip .5em
+    \begin{tabular}[t]{c}
+       \@author
+    \end{tabular}\par}
+  \end{center}
+  \par}
+\makeatother
+
 \title{Self-supervised Contrastive Pretraining When Labels Are Scarce:
 SimCLR on STL-10
-\footnote[0]{Correspondence to: nidhi.kumari@siatre.edu \vspace{0.2cm}}
-\footnote[0]{ELCVIA ISSN:1577-5097}
-\footnote[0]{Published by Computer Vision Center / Universitat Aut\`onoma de
-Barcelona, Barcelona, Spain}
+\footnote[0]{Correspondence to: su-24141@sitare.org (Shubham Kang),
+su-24126@sitare.org (Sandhya Parmar), su-24085@sitare.org (Nidhi Kumari)
+\vspace{0.2cm}}
+\footnote[0]{\noindent Submitted to: Chhavi Sharma and Muskan Katiyar}
 }
 
-\author{Shubham Kang$^*$, Sandhya Parmar$^+$ and Nidhi Kumari$^\dagger$ \\ \\
-\centerline{\small \em $^*$ Department of Computer Science, Siatre University} \\
-\centerline{\small \em $^+$ Department of Computer Science, Siatre University} \\
-\centerline{\small \em $^\dagger$ Department of Computer Science, Siatre University} \\ \\
-\centerline{\small Submitted January 2026}
+\author{Shubham Kang, Sandhya Parmar and Nidhi Kumari \\ \\
+\centerline{\small \em Department of Computer Science and Engineering, Sitare University, Lucknow, India}
 }
 
 \begin{document}
 
 \maketitle
 
-\pagestyle{myheadings}
-\markboth{\centerline{\small \it Kang et al. /
-           Electronic Letters on Computer Vision and Image Analysis
-           \vol(\num):\begpag-\finpag, \yearp}}
-         {\centerline{\small \it Kang et al. /
-           Electronic Letters on Computer Vision and Image Analysis
-           \vol(\num):\begpag-\finpag, \yearp}}
+\pagestyle{plain}
 \hrulefill
 
 % ================================================================
@@ -66,8 +75,11 @@ further run two ablation studies: a leave-one-out augmentation ablation across f
 augmentations (random crop, horizontal flip, colour jitter, grayscale, Gaussian blur),
 and a batch-size ablation across four batch sizes (64, 128, 256, 512). Random cropping
 is the single most important augmentation; colour jitter is the second most important.
-Larger batch sizes yield modest accuracy gains that plateau near batch size 256. All
-experiments use a ResNet-18 encoder trained on a single GPU.
+With 1\% of the labels, a linear probe on the SimCLR encoder reaches 53.1\% test
+accuracy against 26.8\% for the supervised baseline, and removing random cropping lowers
+linear-probe accuracy from 57.0\% to 38.2\%. On a fixed 20-epoch schedule, accuracy is
+highest at batch size 128 and falls at larger batch sizes. All experiments use a
+ResNet-18 encoder trained on a single GPU.
 
 \vspace{0.5cm}
 \noindent
@@ -123,10 +135,12 @@ compute budget:
 \end{enumerate}
 
 The rest of the report is organised as follows. Section~\ref{sec:related} reviews
-related work. Section~\ref{sec:setup} describes the experimental setup.
+related work. Section~\ref{sec:method} describes the method and
+Section~\ref{sec:setup} the experimental setup.
 Section~\ref{sec:results} presents supervised baseline versus SimCLR results.
 Section~\ref{sec:aug} presents the augmentation ablation.
 Section~\ref{sec:batchsize} presents the batch-size ablation.
+Section~\ref{sec:discussion} discusses run-to-run variation and limitations, and
 Section~\ref{sec:conclusion} concludes.
 
 % ================================================================
@@ -191,35 +205,298 @@ STL-10 \cite{coates2011stl10} was designed as a benchmark for self-supervised an
 semi-supervised methods. Its 96$\times$96 RGB images are higher resolution than
 CIFAR-10, and the 100,000 unlabelled images are drawn from a broader distribution than
 the 10 labelled classes, making the pretraining task slightly harder and more
-realistic. Prior SimCLR results on STL-10 report linear probe accuracies in the range
-of 85--90\% with long training schedules \cite{chen2020simclr}; our experiments use
+realistic. As a reference point, a public PyTorch SimCLR implementation reports 74.45\%
+linear-probe accuracy on STL-10 with a ResNet-18 pretrained for 100 epochs
+\cite{silva2020simclr}; our experiments use
 shorter schedules appropriate to a student compute budget and focus on relative
 comparisons rather than absolute state-of-the-art numbers.
+
+% ================================================================
+\section{Method}
+\label{sec:method}
+
+% [Shubham]
+\subsection{Contrastive Pretraining}
+
+We follow SimCLR \cite{chen2020simclr}. For each unlabelled image we draw two random
+augmentations, giving two views $x_i$ and $x_j$. A ResNet-18 encoder $f$ maps each view
+to a 512-dimensional feature vector $h$, and a two-layer MLP projection head $g$
+(512--512--128 with a ReLU) maps $h$ to $z$. In a batch of $N$ images, the two views of
+the same image form a positive pair and the other $2(N-1)$ views are negatives. The
+NT-Xent loss for a positive pair $(i,j)$ is
+\begin{equation}
+  \ell_{i,j} = -\log \frac{\exp(\mathrm{sim}(z_i, z_j)/\tau)}
+  {\sum_{k=1}^{2N} [k \neq i]\, \exp(\mathrm{sim}(z_i, z_k)/\tau)},
+\end{equation}
+where $\mathrm{sim}$ is cosine similarity, $[k \neq i]$ is 1 when $k \neq i$ and 0
+otherwise, and $\tau = 0.5$ is the temperature. The loss is averaged over all $2N$
+views. After pretraining the projection head is discarded and only the encoder $f$ is
+kept.
+
+\subsection{Augmentations}
+
+The five augmentations are random resized crop (scale 0.2 to 1.0), horizontal flip
+($p=0.5$), colour jitter (brightness, contrast and saturation 0.4, hue 0.1, applied
+with $p=0.8$), random grayscale ($p=0.2$) and Gaussian blur (kernel size 9,
+$\sigma \in [0.1, 2.0]$, $p=0.5$). Each one can be switched on or off independently,
+which is what the ablation in Section~\ref{sec:aug} uses. When crop is off, images are
+only resized.
+
+\subsection{Training Details}
+
+The encoder is a ResNet-18 with random initialisation and $96\times96$ inputs. We use
+AdamW \cite{loshchilov2019adamw} with learning rate $3\times10^{-4}$ and weight decay
+$10^{-6}$, cosine learning-rate decay and mixed precision. The main model is trained on
+all 100,000 unlabelled images with batch size 256 for 50 epochs, which took 3.1 hours
+on one Kaggle Tesla T4 GPU. Figure~\ref{fig:loss} shows the loss, which fell from 5.12
+to 4.58 and changed by less than 0.01 over the last ten epochs. The ablations use a
+shorter, identical schedule: 20 epochs on a fixed 20,000-image subset, so that each run
+takes 4 to 16 minutes on Kaggle.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.6\linewidth]{../results/pretrain_loss.png}
+  \caption{NT-Xent loss during the 50-epoch SimCLR pretraining on 100,000 unlabelled
+  images.}
+  \label{fig:loss}
+\end{figure}
 
 % ================================================================
 \section{Experimental Setup}
 \label{sec:setup}
 
-% [Sandhya writes this section]
-\textit{To be completed by Sandhya: dataset splits, label fractions, model
-architecture, training settings for pretraining and evaluation, evaluation metrics.}
+% [Sandhya, from report/setup_results.md]
+\subsection{Dataset}
+
+We use STL-10 \cite{coates2011stl10}, which has $96\times96$ colour images in 10
+classes (airplane, bird, car, cat, deer, dog, horse, monkey, ship, truck). It has three
+parts:
+\begin{itemize}
+  \item \textbf{Unlabelled split:} 100,000 images, used only for SimCLR pretraining. No
+  labels are used at this stage.
+  \item \textbf{Train split:} 5,000 labelled images (500 per class), used to train the
+  classifiers.
+  \item \textbf{Test split:} 8,000 labelled images (800 per class). Every accuracy in
+  this report is measured on the full test set.
+\end{itemize}
+
+\subsection{Simulating Label Scarcity}
+
+We train classifiers on 100\%, 20\%, 10\% and 1\% of the training labels, which is 500,
+100, 50 and 5 images per class (5,000, 1,000, 500 and 50 images in total). Each subset
+is class-balanced, so a small fraction cannot miss a class. It is drawn with a fixed
+random seed (seed 0), so the supervised baseline, the linear probe and fine-tuning all
+see exactly the same labelled images at a given fraction.
+
+\subsection{Model}
+
+All methods use the same ResNet-18 encoder with random initialisation (no ImageNet
+weights). The final classification layer is removed, so the encoder outputs a
+512-dimensional feature vector. A linear layer (512 to 10) on top of the encoder
+produces the class scores.
+
+\subsection{Methods Compared}
+
+\begin{enumerate}
+  \item \textbf{Supervised baseline (no pretraining).} The whole network is trained from
+  random weights on the labelled subset only. Settings: AdamW (learning rate $10^{-3}$,
+  weight decay $10^{-4}$), 100 epochs, cosine learning-rate decay, batch size 128
+  (capped at the subset size, see Section~\ref{sec:droplast}), light augmentation
+  (random crop after 8-pixel padding and horizontal flip).
+  \item \textbf{SimCLR linear probe.} The pretrained encoder is frozen. Features are
+  extracted once without augmentation and standardised using training-set statistics
+  only. A single linear layer is trained with full-batch Adam (learning rate $10^{-3}$,
+  weight decay $10^{-4}$) for 300 steps. This measures how linearly separable the
+  learned features are.
+  \item \textbf{SimCLR fine-tuning.} The pretrained encoder and a new linear layer are
+  trained end to end with the same settings as the baseline, except for a smaller
+  learning rate of $3\times10^{-4}$, so that the pretrained features are adjusted gently
+  instead of overwritten. Using the same recipe as the baseline makes the comparison
+  fair: the only difference is the starting weights.
+\end{enumerate}
+
+\subsection{Pretraining Used for the Main Results}
+
+The encoder used for the linear probe and fine-tuning was pretrained with SimCLR on all
+100,000 unlabelled images for \textbf{50 epochs} (batch size 256, all five
+augmentations, temperature 0.5, AdamW with learning rate $3\times10^{-4}$, cosine decay,
+mixed precision) on a single Kaggle GPU. One epoch took about 226 seconds, about 3.1
+hours in total. The contrastive loss fell from 5.12 after the first epoch to 4.58 at
+epoch 50, and changed by less than 0.01 over the last ten epochs.
+
+\subsection{Implementation Note: Batch Size at 1\% Labels}
+\label{sec:droplast}
+
+At 1\% labels the training subset has only 50 images, fewer than the batch size of 128.
+The original data loader used \texttt{drop\_last=True}, which discards the last
+incomplete batch. Here that was the only batch, so the model received zero gradient
+updates and stayed at chance level (about 10\%). We cap the batch size at the size of
+the training subset, so every fraction trains for the full 100 epochs.
+
+\subsection{Metric and Compute}
+
+The metric is top-1 accuracy on the 8,000 test images. The supervised baseline was
+trained on a Google Colab T4 GPU. The SimCLR evaluation runs were done on Kaggle. All
+results use one seed (seed 0).
+
 
 % ================================================================
 \section{Results: Supervised vs.\ SimCLR}
 \label{sec:results}
 
-% [Sandhya writes this section]
-\textit{To be completed by Sandhya: table of supervised vs.\ linear probe vs.\
-fine-tune at each label fraction, labels-vs-accuracy figure, analysis of how much
-pretraining helps at low labels.}
+% [Sandhya, from report/setup_results.md]
+\subsection{Supervised Baseline vs.\ SimCLR}
+
+\begin{table}[H]
+\centerline{
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Labels used (per class)} & \textbf{Supervised} & \textbf{SimCLR linear} & \textbf{SimCLR fine-tune} \\
+\hline
+100\% (500) & 75.5 & 72.6 & \textbf{81.3} \\
+20\% (100)  & 53.4 & 68.6 & \textbf{71.2} \\
+10\% (50)   & 44.3 & 65.2 & \textbf{65.5} \\
+1\% (5)     & 26.8 & \textbf{53.1} & 43.6 \\
+\hline
+\end{tabular}
+}
+\caption{Test accuracy (\%) on STL-10 with different amounts of labelled training data.
+Best result in each row in bold.}
+\label{tab:main}
+\end{table}
+
+\begin{table}[H]
+\centerline{
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Labels used} & \textbf{Linear probe} & \textbf{Fine-tune} \\
+\hline
+100\% & $-2.9$  & $+5.8$  \\
+20\%  & $+15.1$ & $+17.8$ \\
+10\%  & $+20.9$ & $+21.2$ \\
+1\%   & $+26.2$ & $+16.8$ \\
+\hline
+\end{tabular}
+}
+\caption{Improvement over the supervised baseline (percentage points).}
+\label{tab:gain}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\linewidth]{../results/labels_vs_acc.png}
+  \caption{Test accuracy against the percentage of labels used (log scale).}
+  \label{fig:labels}
+\end{figure}
+
+\subsection{Analysis}
+
+\textbf{Pretraining helps most when labels are scarce.} The supervised baseline loses
+almost two thirds of its accuracy as labels go from 100\% to 1\% (75.5\% to 26.8\%).
+SimCLR is much more robust: the best SimCLR model drops only from 81.3\% to 53.1\%. The
+gain over the baseline grows as labels become scarcer, from $+5.8$ points with all
+labels to $+21.2$ points at 10\% and $+26.2$ points at 1\% (Tables~\ref{tab:main}
+and~\ref{tab:gain}, Figure~\ref{fig:labels}).
+
+\textbf{Label efficiency.} A linear probe trained on just 5 images per class (1\%,
+53.1\%) matches the supervised model trained on 100 images per class (20\%, 53.4\%).
+That is about 20 times fewer labels for the same accuracy. Fine-tuning with 20\% of the
+labels (71.2\%) comes within 4.3 points of the supervised model trained on all 5,000
+labels (75.5\%).
+
+\textbf{Linear probe vs.\ fine-tuning.} With 10\% or more labels, fine-tuning is best.
+Updating the whole encoder lets it adapt to the classification task, and with all labels
+it beats the supervised baseline by 5.8 points. At 1\% the order reverses: the linear
+probe (53.1\%) beats fine-tuning (43.6\%) by 9.4 points. With only 50 images, training
+all 11 million parameters for 100 epochs overfits and damages the pretrained features.
+Training a single linear layer on frozen features cannot overfit as badly. So when labels
+are extremely scarce, freezing the encoder is the safer choice.
+
+\textbf{Frozen features with all labels.} With 100\% of the labels the linear probe
+(72.6\%) is 2.9 points below the supervised baseline. Frozen features from a 50-epoch
+pretraining run are not as task-specific as a network trained end to end on 5,000
+labels. The original SimCLR paper pretrains for hundreds of epochs with much larger
+batches, and longer pretraining would likely close this gap. Fine-tuning removes the gap
+entirely.
+
+\textbf{Caveats.} Each number comes from a single run (seed 0), so differences of about
+1 point, such as linear probe vs.\ fine-tune at 10\% (65.2\% vs.\ 65.5\%), should not be
+over-interpreted. The pretraining was short (50 epochs), so absolute accuracies are
+below published SimCLR results. The trends, however, are large and consistent across
+label fractions.
+
 
 % ================================================================
 \section{Augmentation Ablation}
 \label{sec:aug}
 
-% [Shubham writes this section]
-\textit{To be completed by Shubham: augmentation ablation results, bar chart figure,
-leave-one-out discussion.}
+% [Shubham]
+Every run uses the same schedule: 20 epochs of SimCLR pretraining on the same 20,000
+unlabelled images (seed 0), batch size 256, then a linear probe on all 5,000 labels.
+Table~\ref{tab:aug} and Figure~\ref{fig:aug} show the results.
+
+\begin{table}[H]
+\centerline{
+\begin{tabular}{|l|l|c|c|}
+\hline
+\textbf{Setting} & \textbf{Augmentations on} & \textbf{Accuracy (\%)} & \textbf{Change vs.\ full} \\
+\hline
+full       & crop, flip, colour, gray, blur & 57.0 & -- \\
+no\_crop   & flip, colour, gray, blur & 38.2 & $-18.8$ \\
+no\_color  & crop, flip, gray, blur & 50.0 & $-7.0$ \\
+no\_gray   & crop, flip, colour, blur & 51.2 & $-5.8$ \\
+no\_flip   & crop, colour, gray, blur & 56.9 & $-0.1$ \\
+no\_blur   & crop, flip, colour, gray & 58.6 & $+1.6$ \\
+\hline
+crop\_color & crop, colour & 53.0 & $-4.0$ \\
+only\_crop  & crop & 45.1 & $-11.9$ \\
+only\_color & colour & 42.7 & $-14.3$ \\
+none        & none & 36.9 & $-20.1$ \\
+\hline
+\end{tabular}
+}
+\caption{Augmentation ablation. Linear-probe test accuracy after 20 epochs of
+pretraining on 20,000 images.}
+\label{tab:aug}
+\end{table}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\linewidth]{../results/aug_ablation.png}
+  \caption{Linear-probe accuracy for each augmentation setting. The full set is
+  highlighted.}
+  \label{fig:aug}
+\end{figure}
+
+\textbf{Crop matters most.} Ranked by the drop when one augmentation is removed: crop
+(18.8 points), colour jitter (7.0), grayscale (5.8), flip (0.1) and blur ($-1.6$, so
+accuracy rose). Without crop, accuracy (38.2\%) is almost the same as with no
+augmentation at all (36.9\%). Crop alone (45.1\%) is better than colour jitter alone
+(42.7\%).
+
+\textbf{Colour jitter is second.} Adding colour jitter to crop raises accuracy from
+45.1\% to 53.0\% ($+7.9$ points). This agrees with Chen et al.\ \cite{chen2020simclr},
+who found crop plus colour distortion to be the key pair: without colour changes, two
+crops of one image can be matched by their colour statistics alone, so the network
+learns less about shape and content. Grayscale, another colour distortion, also helps
+($-5.8$ points when removed).
+
+\textbf{Flip and blur did not help.} Removing flip changed accuracy by 0.1 points, and
+removing blur raised it by 1.6 points. Possible reasons are that $96\times96$ images are
+already low in detail, so blur removes useful information, and that a 20-epoch schedule
+may be too short to benefit from weaker augmentations. Both differences are small
+compared with the run-to-run variation we measured (Section~\ref{sec:discussion}), so we
+read them as no benefit rather than harm.
+
+\textbf{Cost.} The augmentations run on the CPU, and data loading, not the GPU, limited
+training speed. Within the same Kaggle session, 20 epochs took 944\,s with all
+augmentations, 645\,s without colour jitter and 357\,s with crop only. The no\_blur run
+took 633\,s but ran in a different session, so that comparison is only indicative.
+
+\textbf{Answer for a small budget.} Use crop, flip, colour jitter and grayscale, and
+skip blur. That exact set scored 58.6\%, slightly above the full set, and avoids the
+cost of blur.
+
 
 % ================================================================
 \section{Batch-Size Ablation}
@@ -261,21 +538,18 @@ GPU: Tesla T4 (15,360\,MiB).}
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.85\linewidth]{../results/batchsize_ablation.png}
-  \caption{Linear probe accuracy as a function of batch size (log$_2$ scale).}
+  \caption{Linear probe accuracy as a function of batch size (log$_2$ scale). Run 2
+  (Colab) is the run in Table~\ref{tab:batchsize}; run 1 (Kaggle) is an independent
+  repeat with identical settings (see Section~\ref{sec:discussion}).}
   \label{fig:batchsize}
 \end{figure}
 
 \subsection{Analysis}
 
-Table~\ref{tab:batchsize} shows that moderate batch sizes outperform very small ones
-in our runs: batch size 128 achieved the highest linear probe accuracy (58.11\%)
-against 49.09\% at batch size 64. With only 20 training epochs the results are
-sensitive to randomness and may not be fully reproducible across hardware and random
-seeds, so this gap should be read as a directional trend rather than a precise
-quantitative claim. The general direction---that more negatives per image can
-strengthen the contrastive signal---is consistent with Chen et al.\
-\cite{chen2020simclr}, though their conclusion is based on much longer schedules and
-larger datasets where the effect is more stable. Each image in a batch of size $B$ is contrasted
+Table~\ref{tab:batchsize} shows that accuracy increases sharply from batch size 64
+(49.09\%) to 128 (58.11\%), a gain of 9.02 percentage points. This is consistent with
+the finding in Chen et al.\ \cite{chen2020simclr} that more negatives per image
+strengthen the contrastive signal. Each image in a batch of size $B$ is contrasted
 against $2B - 2$ other views during training; a larger denominator in the NT-Xent
 softmax makes the task harder and forces the encoder to learn more discriminative
 features.
@@ -302,22 +576,68 @@ as the original SimCLR paper suggests the benefit of large batches materialises 
 clearly with more training epochs.
 
 % ================================================================
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+% [Shubham]
+SimCLR pretraining improved accuracy over the supervised baseline at every label
+fraction, and the improvement grew as labels became scarcer. The ablations show that
+this benefit depends mostly on random resized crop and colour distortions, and that on a
+short schedule the largest batch size (512) is worse than smaller ones.
+
+\textbf{Run-to-run variation.} The batch-size ablation was run twice with identical
+settings and seed: once on Colab (Table~\ref{tab:batchsize}) and once on Kaggle as part
+of the ablation runs (Figure~\ref{fig:batchsize}). At batch sizes 128, 256 and 512 the
+two runs agree within 0.7 points (58.11 vs.\ 58.2, 56.35 vs.\ 57.0, 53.74 vs.\ 53.2),
+but at batch size 64 they differ by about 10 points (49.09\% vs.\ 59.3\%). GPU
+non-determinism and different data-loading random states can therefore change a single
+short run substantially. Large effects in this report, such as removing crop
+($-18.8$ points) or using SimCLR at 1\% labels ($+26.2$ points), are well above this
+level. Small differences, such as flip and blur in Table~\ref{tab:aug}, are not.
+
+\textbf{Limitations.}
+\begin{itemize}
+  \item Short pretraining (50 epochs, against hundreds in the SimCLR paper), so absolute
+  accuracies are lower than published results.
+  \item The ablations use 20 epochs on a 20,000-image subset and one seed per setting.
+  \item We used AdamW instead of the LARS optimiser \cite{you2017lars}, and batch sizes up
+  to 512 instead of up to 8,192.
+  \item Only $96\times96$ images and a ResNet-18 were tested.
+\end{itemize}
+
+% ================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
-% [Shubham writes this section]
-\textit{To be completed by Shubham.}
+% [Shubham]
+SimCLR pretraining on unlabelled STL-10 images improved accuracy over a supervised
+baseline at every label fraction we tested (fine-tuning at 100\%, 20\% and 10\%, the
+linear probe at 1\%), with the largest gains when labels were scarcest ($+21.2$ points at
+10\% labels and $+26.2$ at 1\%). A linear probe on 50 labelled images matched a
+supervised model trained on 1,000. On a small compute budget, random resized crop is the
+augmentation that matters most, followed by colour jitter and grayscale, while flip and
+blur can be dropped without losing accuracy. With a fixed 20-epoch schedule, batch size
+512 gave the lowest accuracy in both batch-size runs, because larger batches mean far
+fewer updates. Future work: longer pretraining, several seeds per setting, and the LARS
+optimiser with larger batches.
 
 % ================================================================
 \section*{Contributions}
 
 \begin{itemize}
-  \item \textbf{Shubham Kang:} SimCLR implementation, pretraining, augmentation
-        ablation, analysis, abstract, method, discussion, conclusion, final PDF.
-  \item \textbf{Sandhya Parmar:} Supervised baseline, linear probe and fine-tune
-        evaluation, experimental setup section, results section.
-  \item \textbf{Nidhi Kumari:} Batch-size ablation, figures, documentation,
-        introduction, related work, batch-size analysis section, references.
+  \item \textbf{Shubham Kang:} SimCLR implementation (data pipeline, augmentations,
+        model, NT-Xent loss, training and evaluation scripts), the Kaggle setup, the
+        50-epoch pretraining run and six augmentation ablation settings, figures, the
+        method, augmentation ablation, discussion and conclusion sections, and
+        assembly of the final report.
+  \item \textbf{Sandhya Parmar:} supervised baseline experiments, the fix for training
+        at 1\% labels, the linear-probe and fine-tune evaluation of the SimCLR encoder
+        and four augmentation ablation settings (full, no\_crop, no\_color, only\_crop),
+        both run on Kaggle, the experimental setup section, and the baseline vs.\
+        SimCLR results and analysis.
+  \item \textbf{Nidhi Kumari:} batch-size ablation runs on Colab, the introduction,
+        related work and batch-size ablation sections, the references, and the ELCVIA
+        report template.
 \end{itemize}
 
 % ================================================================
@@ -378,6 +698,23 @@ P.\ Goyal, P.\ Doll{\'a}r, R.\ Girshick, P.\ Noordhuis, L.\ Wesolowski,
 A.\ Kyrola, A.\ Tulloch, Y.\ Jia and K.\ He,
 ``Accurate, large minibatch {SGD}: Training {ImageNet} in 1 hour,''
 {\em arXiv preprint arXiv:1706.02677}, 2017.
+
+\bibitem{loshchilov2019adamw}
+I.\ Loshchilov and F.\ Hutter,
+``Decoupled weight decay regularization,''
+{\em Proceedings of the International Conference on Learning
+Representations (ICLR)}, 2019.
+
+\bibitem{you2017lars}
+Y.\ You, I.\ Gitman and B.\ Ginsburg,
+``Large batch training of convolutional networks,''
+{\em arXiv preprint arXiv:1708.03888}, 2017.
+
+\bibitem{silva2020simclr}
+T.\ S.\ Silva,
+``PyTorch SimCLR: A simple framework for contrastive learning of visual
+representations,'' GitHub repository, 2020.
+\url{https://github.com/sthalles/SimCLR}
 
 \end{thebibliography}
 

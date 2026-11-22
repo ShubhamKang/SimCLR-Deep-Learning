@@ -1,0 +1,7 @@
+mode,tag,frac,seed,test_acc
+linear,abl_only_color,1.0,0,0.4268
+linear,abl_crop_color,1.0,0,0.5296
+linear,abl_no_gray,1.0,0,0.5119
+linear,abl_no_blur,1.0,0,0.5857
+linear,abl_no_flip,1.0,0,0.5689
+linear,abl_none,1.0,0,0.3688

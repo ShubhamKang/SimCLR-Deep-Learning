@@ -1,0 +1,9 @@
+mode,tag,frac,seed,test_acc
+linear,simclr_full,1.0,0,0.7260
+linear,simclr_full,0.2,0,0.6858
+linear,simclr_full,0.1,0,0.6522
+linear,simclr_full,0.01,0,0.5305
+finetune,simclr_full,1.0,0,0.8130
+finetune,simclr_full,0.2,0,0.7124
+finetune,simclr_full,0.1,0,0.6546
+finetune,simclr_full,0.01,0,0.4364
