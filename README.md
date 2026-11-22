@@ -47,7 +47,7 @@ Augmentation and batch-size ablations (20 epochs, 20k images, linear probe at 10
 ![Augmentation ablation](results/aug_ablation.png)
 ![Batch size](results/batchsize_ablation.png)
 
-Random resized crop matters most (removing it: 57.0 to 38.2%), then colour jitter (-7.0) and grayscale (-5.8); flip and blur gave no measurable benefit. Smaller batches did better at a fixed 20 epochs (64: 59.3%, 512: 53.2%). All numbers: `results/all_results.csv`.
+Random resized crop matters most (removing it: 57.0 to 38.2%), then colour jitter (-7.0) and grayscale (-5.8); flip and blur gave no measurable benefit. At a fixed 20 epochs, batch size 512 was worst in both batch-size runs (53.2% and 53.7%); the best was 64 (59.3%) in the Kaggle run and 128 (58.1%) in the Colab run, so small differences are within run-to-run variation (report Section 8). All numbers: `results/all_results.csv` and `results/batchsize_colab_nidhi.csv`.
 
 Pretrained encoder: `full.pt` (Google Drive: https://drive.google.com/drive/folders/19Jx_VJRAVgrmFSTTiKfxzuYg_Dki9dWL). Place it in `checkpoints/` to rerun `scripts/run_main_eval.sh`.
 
