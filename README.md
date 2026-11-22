@@ -52,9 +52,9 @@ Random resized crop matters most (removing it: 57.0 to 38.2%), then colour jitte
 Pretrained encoder: `full.pt` (Google Drive: https://drive.google.com/drive/folders/19Jx_VJRAVgrmFSTTiKfxzuYg_Dki9dWL). Place it in `checkpoints/` to rerun `scripts/run_main_eval.sh`.
 
 ## Contributions
-- Shubham Kang: SimCLR implementation, pretraining, augmentation ablation, analysis
-- Sandhya Parmar: supervised baseline, linear probe and fine-tune evaluation
-- Nidhi Kumari: batch-size ablation, plots, documentation
+- Shubham Kang: SimCLR implementation, Kaggle runs (pretraining, evaluation, ablations), figures, method, augmentation ablation, discussion and conclusion, report assembly
+- Sandhya Parmar: supervised baseline, 1% label fix, experimental setup and results sections
+- Nidhi Kumari: batch-size ablation runs on Colab, introduction, related work, batch-size section, references, report template
 
 ## Reference
 Chen et al., A Simple Framework for Contrastive Learning of Visual Representations, ICML 2020. https://arxiv.org/abs/2002.05709
