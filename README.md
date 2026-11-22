@@ -52,8 +52,8 @@ Random resized crop matters most (removing it: 57.0 to 38.2%), then colour jitte
 Pretrained encoder: `full.pt` (Google Drive: https://drive.google.com/drive/folders/19Jx_VJRAVgrmFSTTiKfxzuYg_Dki9dWL). Place it in `checkpoints/` to rerun `scripts/run_main_eval.sh`.
 
 ## Contributions
-- Shubham Kang: SimCLR implementation, Kaggle runs (pretraining, evaluation, ablations), figures, method, augmentation ablation, discussion and conclusion, report assembly
-- Sandhya Parmar: supervised baseline, 1% label fix, experimental setup and results sections
+- Shubham Kang: SimCLR implementation, Kaggle setup, 50-epoch pretraining and six augmentation ablation settings, figures, method, augmentation ablation, discussion and conclusion, report assembly
+- Sandhya Parmar: supervised baseline, 1% label fix, linear-probe and fine-tune evaluation and four augmentation ablation settings (run on Kaggle), experimental setup and results sections
 - Nidhi Kumari: batch-size ablation runs on Colab, introduction, related work, batch-size section, references, report template
 
 ## Reference
