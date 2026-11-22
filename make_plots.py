@@ -20,6 +20,9 @@ import matplotlib.pyplot as plt
 # ---- 1. load and merge every CSV ----
 files = ["results/results.csv", "results/results_simclr_full.csv"] + sorted(glob.glob("results/ablation_*.csv"))
 frames = [pd.read_csv(f) for f in files if glob.glob(f)]
+# Nidhi's Colab batch-size run (run 2) lives in results/batchsize_colab_nidhi.csv and is plotted
+# separately below. Drop any copy of it from results.csv so it is not mixed into run 1.
+frames[0] = frames[0][~frames[0].tag.astype(str).str.startswith("bs_")]
 df = pd.concat(frames).drop_duplicates(subset=["mode", "tag", "frac", "seed"], keep="last")
 df["acc"] = df.test_acc * 100  # accuracy in percent
 df.to_csv("results/all_results.csv", index=False)

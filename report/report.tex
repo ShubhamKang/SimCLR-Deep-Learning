@@ -5,6 +5,7 @@
 %**************************************************************************
 
 \documentclass[twoside,a4paper,11pt]{article}
+\usepackage[T1]{fontenc}
 \usepackage{times}
 \usepackage{elcvia}
 \usepackage[english]{babel}
@@ -546,10 +547,15 @@ GPU: Tesla T4 (15,360\,MiB).}
 
 \subsection{Analysis}
 
-Table~\ref{tab:batchsize} shows that accuracy increases sharply from batch size 64
-(49.09\%) to 128 (58.11\%), a gain of 9.02 percentage points. This is consistent with
-the finding in Chen et al.\ \cite{chen2020simclr} that more negatives per image
-strengthen the contrastive signal. Each image in a batch of size $B$ is contrasted
+Table~\ref{tab:batchsize} shows that moderate batch sizes outperform very small ones
+in our runs: batch size 128 achieved the highest linear probe accuracy (58.11\%)
+against 49.09\% at batch size 64. With only 20 training epochs the results are
+sensitive to randomness and may not be fully reproducible across hardware and random
+seeds, so this gap should be read as a directional trend rather than a precise
+quantitative claim. The general direction---that more negatives per image can
+strengthen the contrastive signal---is consistent with Chen et al.\
+\cite{chen2020simclr}, though their conclusion is based on much longer schedules and
+larger datasets where the effect is more stable. Each image in a batch of size $B$ is contrasted
 against $2B - 2$ other views during training; a larger denominator in the NT-Xent
 softmax makes the task harder and forces the encoder to learn more discriminative
 features.
@@ -559,7 +565,7 @@ Interestingly, accuracy \textit{decreases} beyond batch size 128: 56.35\% at 256
 the interaction between batch size and the number of gradient updates under a fixed
 compute budget. With 20 epochs and 20,000 images, batch size 128 gives
 $\lfloor 20000/128 \rfloor \times 20 = 3{,}120$ update steps, while batch size 512
-gives only $\lfloor 20000/512 \rfloor \times 20 = 760$ steps. The larger batch
+gives only $\lfloor 20000/512 \rfloor \times 20 = 780$ steps. The larger batch
 provides more negatives per step but far fewer steps overall, and at this short
 schedule the reduction in updates outweighs the benefit of additional negatives.
 Linear learning rate scaling \cite{goyal2017scaling} would partly compensate, but
