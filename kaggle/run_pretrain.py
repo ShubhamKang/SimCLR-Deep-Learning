@@ -4,6 +4,8 @@ This file is pushed to Kaggle with `kaggle kernels push`. Kaggle runs it top to
 bottom on a GPU machine, even if your browser is closed. Everything saved in
 /kaggle/working becomes the notebook "Output", which you can download afterwards.
 """
+# os works with folders, subprocess runs other programs (git, python),
+# sys gives the path of the running Python.
 import os, subprocess, sys
 
 # ---- settings you can change ----
@@ -22,6 +24,7 @@ OUT_DIR = "/kaggle/working"
 
 def run(cmd, cwd=None):
     """Run a shell command, print its output live, and stop everything if it fails."""
+    # Print the command first, so the Kaggle log shows what is running.
     print("$", " ".join(cmd), flush=True)
     subprocess.run(cmd, cwd=cwd, check=True)  # check=True raises an error on failure
 
@@ -30,6 +33,7 @@ def run(cmd, cwd=None):
 os.makedirs("/kaggle/temp", exist_ok=True)
 if os.path.exists(REPO_DIR):
     run(["rm", "-rf", REPO_DIR])
+# Download the code from GitHub. --depth 1 fetches only the latest version (faster).
 run(["git", "clone", "--depth", "1", REPO_URL, REPO_DIR])
 
 # 2. Show which GPU we got (useful to note in the report).

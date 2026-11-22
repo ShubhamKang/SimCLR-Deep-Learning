@@ -1,54 +1,65 @@
-"""Network definitions (report Section 3.1).
+"""The neural networks used in this project.
 
-SimCLR has two parts:
-  1. Encoder f (ResNet-18): turns a 96x96 image into a 512-number feature vector h.
-     This is the part we KEEP after pretraining and reuse for classification.
-  2. Projection head g: a small MLP that maps h (512 numbers) to z (128 numbers).
-     The contrastive loss is computed on z. It is thrown away after pretraining.
+A neural network is a function with millions of adjustable numbers ("weights"). Training
+changes these weights so the outputs become useful.
 
-QUESTIONS THIS FILE ANSWERS
-Q: Why ResNet-18?
-   A standard CNN for small and medium datasets (about 11 million parameters) that trains
-   on one T4 GPU in our budget (50 epochs on 100,000 images took 3.1 hours). The same
-   architecture is used for every method, so comparisons are fair.
-Q: Why no ImageNet-pretrained weights?
-   Starting from ImageNet weights would mean the network had already learned from millions
-   of LABELLED images, which would defeat the purpose of testing what self-supervised
-   pretraining on unlabelled STL-10 images alone can do.
-Q: Why a projection head, and why discard it?
-   Chen et al. found that computing the loss on a separate head and then using the features
-   BEFORE the head gives better downstream accuracy. The head learns to throw away
-   information that is not needed to match two views (e.g. colour), information that can
-   still be useful for classification.
-Q: What does the classifier look like?
-   For evaluation (evaluate.py) a single linear layer 512 -> 10 is put on top of the encoder.
+SimCLR uses two parts:
+  1. The encoder: a ResNet-18, a well-known convolutional neural network (CNN) for images,
+     with 18 layers and about 11 million weights. It turns a 96 x 96 image into a list of
+     512 numbers (a "feature vector") that describes the image. This is the part we keep
+     after pretraining and use later for classification.
+  2. The projection head: a small extra network that turns those 512 numbers into 128
+     numbers. The contrastive loss is calculated on these 128 numbers. After pretraining
+     the head is thrown away, because the SimCLR paper found that the 512 numbers BEFORE
+     the head work better for classifying images.
 """
+# torch.nn (short name nn) contains the building blocks of neural networks:
+# layers such as nn.Linear, activation functions such as nn.ReLU, and nn.Module.
 import torch.nn as nn
+# torchvision contains ready-made image networks, including ResNet-18.
 import torchvision
 
 
 def make_encoder():
-    """ResNet-18 with RANDOM weights and its final classification layer removed.
+    """Create a ResNet-18 encoder that outputs 512 numbers per image.
 
-    torchvision's ResNet-18 ends with `fc`, a layer that outputs 1000 ImageNet class scores.
-    Replacing it with Identity (a layer that does nothing) makes the network output the
-    512-dimensional pooled feature vector instead.
+    The weights start random. We deliberately do NOT load weights pretrained on ImageNet
+    (a large labelled dataset), because the point of the project is to see what the
+    network can learn from unlabelled STL-10 images alone.
     """
-    m = torchvision.models.resnet18(weights=None)  # weights=None -> random initialisation
+    # Build a ResNet-18. weights=None means random starting weights.
+    m = torchvision.models.resnet18(weights=None)
+    # The last layer of ResNet-18 is called "fc" (fully connected). It turns the 512 features
+    # into 1,000 scores for the 1,000 ImageNet classes, which we do not need.
+    # nn.Identity() is a layer that returns its input unchanged, so replacing fc with it
+    # makes the network output the 512 features directly.
     m.fc = nn.Identity()
-    return m  # output shape: [batch, 512]
+    # For a batch of images the output has the shape [number of images, 512].
+    return m
 
 
 class SimCLR(nn.Module):
-    """Encoder + projection head. Used only during pretraining (train_simclr.py).
-    Only `self.encoder` is saved to the checkpoint used later for evaluation."""
+    """Encoder plus projection head. Only used during SimCLR pretraining (train_simclr.py).
+
+    nn.Module is PyTorch's base class for networks. A network class defines its layers in
+    __init__ and what happens to the input in forward.
+    """
+
     def __init__(self, proj_dim=128):
+        # Run the setup code of nn.Module first; PyTorch requires this.
         super().__init__()
+        # The encoder: ResNet-18 that outputs 512 numbers (see make_encoder above).
         self.encoder = make_encoder()
-        # Projection head: 512 -> 512 -> 128 with a ReLU in between. The non-linearity
-        # matters: SimCLR found a non-linear head better than a linear one or no head.
+        # The projection head, built with nn.Sequential, which runs layers one after another:
+        #   nn.Linear(512, 512)      : a fully connected layer, 512 numbers in, 512 out.
+        #   nn.ReLU(inplace=True)    : an activation function that replaces negative numbers
+        #                              with 0. Without it, two Linear layers in a row would be
+        #                              no more powerful than one. inplace=True saves memory.
+        #   nn.Linear(512, proj_dim) : 512 numbers in, 128 out (proj_dim = 128).
         self.head = nn.Sequential(nn.Linear(512, 512), nn.ReLU(inplace=True), nn.Linear(512, proj_dim))
 
     def forward(self, x):
-        # image -> encoder -> 512-d features h -> head -> 128-d projection z (fed to the loss)
+        # forward says what the network does with an input x (a batch of images).
+        # First the encoder turns each image into 512 numbers, then the head turns those
+        # into 128 numbers. Calling model(x) runs this function.
         return self.head(self.encoder(x))
