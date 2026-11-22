@@ -246,8 +246,8 @@ log$_2$ scale.
 \hline
 \textbf{Batch size} & \textbf{Test accuracy (\%)} & \textbf{Pretrain time (min)} \\
 \hline
-64  & --    & 35.3 \\
-128 & --    & 31.1 \\
+64  & 49.09 & 35.3 \\
+128 & 58.11 & 31.1 \\
 256 & 56.35 & 32.0 \\
 512 & 53.74 & 34.4 \\
 \hline
@@ -255,7 +255,7 @@ log$_2$ scale.
 }
 \caption{Linear probe accuracy and pretraining time for each batch size.
 All runs use 20 epochs, 20,000 unlabelled images, and all five augmentations.
-Rows marked -- are to be filled once bs=64 and bs=128 runs complete.}
+GPU: Tesla T4 (15,360\,MiB).}
 \label{tab:batchsize}
 \end{table}
 
@@ -268,27 +268,34 @@ Rows marked -- are to be filled once bs=64 and bs=128 runs complete.}
 
 \subsection{Analysis}
 
-Increasing batch size improves linear probe accuracy, consistent with the finding in
-Chen et al.\ \cite{chen2020simclr} that more negatives per image strengthen the
-contrastive signal. Each image in a batch of size $B$ is contrasted against $2B - 2$
-other views during training; a larger denominator in the NT-Xent softmax makes the
-task harder and forces the encoder to learn more discriminative features.
+Table~\ref{tab:batchsize} shows that accuracy increases sharply from batch size 64
+(49.09\%) to 128 (58.11\%), a gain of 9.02 percentage points. This is consistent with
+the finding in Chen et al.\ \cite{chen2020simclr} that more negatives per image
+strengthen the contrastive signal. Each image in a batch of size $B$ is contrasted
+against $2B - 2$ other views during training; a larger denominator in the NT-Xent
+softmax makes the task harder and forces the encoder to learn more discriminative
+features.
 
-However, the gains diminish at larger batch sizes. Under our fixed schedule, batch size
-512 did not outperform 256. Two factors explain this. First, with only 20 epochs and
-20,000 images, a larger batch means fewer gradient updates overall
-(20,000/512 $\approx$ 39 steps per epoch versus 20,000/64 $\approx$ 312), so the
-model has fewer opportunities to refine its representations. Second, the learning rate
-was not scaled with batch size; linear learning rate scaling \cite{goyal2017scaling}
-would partly compensate for the reduced number of updates.
+Interestingly, accuracy \textit{decreases} beyond batch size 128: 56.35\% at 256 and
+53.74\% at 512, both below the 128 peak. This non-monotonic behaviour is explained by
+the interaction between batch size and the number of gradient updates under a fixed
+compute budget. With 20 epochs and 20,000 images, batch size 128 gives
+$\lfloor 20000/128 \rfloor \times 20 = 3{,}120$ update steps, while batch size 512
+gives only $\lfloor 20000/512 \rfloor \times 20 = 760$ steps. The larger batch
+provides more negatives per step but far fewer steps overall, and at this short
+schedule the reduction in updates outweighs the benefit of additional negatives.
+Linear learning rate scaling \cite{goyal2017scaling} would partly compensate, but
+was not applied here since all runs used the same learning rate $3\times10^{-4}$.
 
 Training time was broadly similar across all batch sizes (31--35 minutes on a T4),
-because the total number of images processed per epoch is fixed by the subset size,
-not the batch size. GPU memory usage scales linearly with batch size, which would
-become a constraint on hardware with less than 15,360\,MiB.
+because the total number of images processed per epoch is fixed by the subset size
+rather than the batch size. GPU memory usage scales linearly with batch size, which
+would become a hard constraint on hardware with less than 15,360\,MiB.
 
-For this dataset and schedule, batch size 256 offers the best trade-off between
-representation quality and compute efficiency.
+For this dataset and short schedule, batch size 128 gives the best linear probe
+accuracy. Batch size 256 is a reasonable choice when longer training is available,
+as the original SimCLR paper suggests the benefit of large batches materialises more
+clearly with more training epochs.
 
 % ================================================================
 \section{Conclusion}

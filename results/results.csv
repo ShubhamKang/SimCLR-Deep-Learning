@@ -3,3 +3,7 @@ scratch,supervised,1.0,0,0.7552
 scratch,supervised,0.2,0,0.5344
 scratch,supervised,0.1,0,0.4429
 scratch,supervised,0.01,0,0.2682
+linear,bs_64,1.0,0,0.4909
+linear,bs_128,1.0,0,0.5811
+linear,bs_256,1.0,0,0.5635
+linear,bs_512,1.0,0,0.5374
