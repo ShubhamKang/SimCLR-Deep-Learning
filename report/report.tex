@@ -28,18 +28,17 @@
 
 \title{Self-supervised Contrastive Pretraining When Labels Are Scarce:
 SimCLR on STL-10
-\footnote[0]{Correspondence to: nidhi@university.edu \vspace{0.2cm}}
-\footnote[0]{\noindent Recommended for acceptance by $<$name$>$}
+\footnote[0]{Correspondence to: nidhi.kumari@siatre.edu \vspace{0.2cm}}
 \footnote[0]{ELCVIA ISSN:1577-5097}
 \footnote[0]{Published by Computer Vision Center / Universitat Aut\`onoma de
 Barcelona, Barcelona, Spain}
 }
 
 \author{Shubham Kang$^*$, Sandhya Parmar$^+$ and Nidhi Kumari$^\dagger$ \\ \\
-\centerline{\small \em $^*$ Department of Computer Science, University, City, Country} \\
-\centerline{\small \em $^+$ Department of Computer Science, University, City, Country} \\
-\centerline{\small \em $^\dagger$ Department of Computer Science, University, City, Country} \\ \\
-\centerline{\small Received 1 January 2026; revised 1 January 2026; accepted 1 January 2026}
+\centerline{\small \em $^*$ Department of Computer Science, Siatre University} \\
+\centerline{\small \em $^+$ Department of Computer Science, Siatre University} \\
+\centerline{\small \em $^\dagger$ Department of Computer Science, Siatre University} \\ \\
+\centerline{\small Submitted January 2026}
 }
 
 \begin{document}
@@ -268,10 +267,15 @@ GPU: Tesla T4 (15,360\,MiB).}
 
 \subsection{Analysis}
 
-Table~\ref{tab:batchsize} shows that accuracy increases sharply from batch size 64
-(49.09\%) to 128 (58.11\%), a gain of 9.02 percentage points. This is consistent with
-the finding in Chen et al.\ \cite{chen2020simclr} that more negatives per image
-strengthen the contrastive signal. Each image in a batch of size $B$ is contrasted
+Table~\ref{tab:batchsize} shows that moderate batch sizes outperform very small ones
+in our runs: batch size 128 achieved the highest linear probe accuracy (58.11\%)
+against 49.09\% at batch size 64. With only 20 training epochs the results are
+sensitive to randomness and may not be fully reproducible across hardware and random
+seeds, so this gap should be read as a directional trend rather than a precise
+quantitative claim. The general direction---that more negatives per image can
+strengthen the contrastive signal---is consistent with Chen et al.\
+\cite{chen2020simclr}, though their conclusion is based on much longer schedules and
+larger datasets where the effect is more stable. Each image in a batch of size $B$ is contrasted
 against $2B - 2$ other views during training; a larger denominator in the NT-Xent
 softmax makes the task harder and forces the encoder to learn more discriminative
 features.
