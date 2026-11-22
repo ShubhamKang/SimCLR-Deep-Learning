@@ -26,33 +26,41 @@
 %------------------------------------------------------------------
 \renewcommand{\thefootnote}{\fnsymbol{footnote}}
 
+% Title block from elcvia.sty without the journal line ("Electronic Letters ... vol(num)")
+% and with a page number on the first page.
+\makeatletter
+\def\@maketitle{%
+  \newpage
+  \thispagestyle{plain}%
+  \vskip 1em
+  \begin{center}
+    {\LARGE\bf \@title \par}
+    \vskip 1.5em
+    {\large \lineskip .5em
+    \begin{tabular}[t]{c}
+       \@author
+    \end{tabular}\par}
+  \end{center}
+  \par}
+\makeatother
+
 \title{Self-supervised Contrastive Pretraining When Labels Are Scarce:
 SimCLR on STL-10
-\footnote[0]{Correspondence to: nidhi@university.edu \vspace{0.2cm}}
-\footnote[0]{\noindent Recommended for acceptance by $<$name$>$}
-\footnote[0]{ELCVIA ISSN:1577-5097}
-\footnote[0]{Published by Computer Vision Center / Universitat Aut\`onoma de
-Barcelona, Barcelona, Spain}
+\footnote[0]{Correspondence to: su-24141@sitare.org (Shubham Kang),
+su-24126@sitare.org (Sandhya Parmar), su-24085@sitare.org (Nidhi Kumari)
+\vspace{0.2cm}}
+\footnote[0]{\noindent Submitted to: Chhavi Sharma and Muskan Katiyar}
 }
 
-\author{Shubham Kang$^*$, Sandhya Parmar$^+$ and Nidhi Kumari$^\dagger$ \\ \\
-\centerline{\small \em $^*$ Department of Computer Science, University, City, Country} \\
-\centerline{\small \em $^+$ Department of Computer Science, University, City, Country} \\
-\centerline{\small \em $^\dagger$ Department of Computer Science, University, City, Country} \\ \\
-\centerline{\small Received 1 January 2026; revised 1 January 2026; accepted 1 January 2026}
+\author{Shubham Kang, Sandhya Parmar and Nidhi Kumari \\ \\
+\centerline{\small \em Department of Computer Science and Engineering, Sitare University, Lucknow, India}
 }
 
 \begin{document}
 
 \maketitle
 
-\pagestyle{myheadings}
-\markboth{\centerline{\small \it Kang et al. /
-           Electronic Letters on Computer Vision and Image Analysis
-           \vol(\num):\begpag-\finpag, \yearp}}
-         {\centerline{\small \it Kang et al. /
-           Electronic Letters on Computer Vision and Image Analysis
-           \vol(\num):\begpag-\finpag, \yearp}}
+\pagestyle{plain}
 \hrulefill
 
 % ================================================================
