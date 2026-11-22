@@ -62,14 +62,19 @@ log_path = os.path.join(log_dir, f"pretrain_{a.name}.csv")
 # The state file holds EVERYTHING needed to continue training after a crash or disconnect:
 # full model, optimiser, learning-rate schedule, grad scaler and the last finished epoch.
 state_path = os.path.join(ckpt_dir, f"{a.name}_state.pt")
-start_ep = 1
+start_ep = 1  # first epoch to train; changes only when resuming
 if a.resume and os.path.exists(state_path):
+    # Load the saved state onto the same device we train on.
     st = torch.load(state_path, map_location=dev)
-    model.load_state_dict(st["model"]); opt.load_state_dict(st["opt"])
-    sched.load_state_dict(st["sched"]); scaler.load_state_dict(st["scaler"])
-    start_ep = st["epoch"] + 1
+    model.load_state_dict(st["model"])    # encoder + projection head weights
+    opt.load_state_dict(st["opt"])        # AdamW moment estimates, so updates continue smoothly
+    sched.load_state_dict(st["sched"])    # position in the cosine learning-rate schedule
+    scaler.load_state_dict(st["scaler"])  # mixed-precision loss-scale value
+    start_ep = st["epoch"] + 1            # continue after the last finished epoch
     print(f"Resuming from epoch {start_ep}", flush=True)
+    # The existing loss log is kept and new epochs are appended to it.
 else:
+    # Fresh run: create the loss log with its header row (overwrites an old log of the same name).
     with open(log_path, "w", newline="") as f:
         csv.writer(f).writerow(["epoch", "loss", "seconds"])  # header; one row is added per epoch
 
