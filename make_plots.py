@@ -53,17 +53,25 @@ if len(ab):
     ax.set_xlabel("Linear-probe test accuracy (%)"); ax.grid(axis="y", visible=False)
     fig.tight_layout(); fig.savefig("results/aug_ablation.png", dpi=200)
 
-# ---- 4. Figure 3: batch size (bs_* runs, plus abl_full as the batch-256 point) ----
+# ---- 4. Figure 3: batch size, two independent runs with identical settings ----
+#   Run 1 (Kaggle): bs_* rows in results/ablation_nidhi.csv, plus abl_full as the batch-256 point.
+#   Run 2 (Colab, Nidhi): results/batchsize_colab_nidhi.csv. Kept in a separate file so it is not
+#   merged with run 1 (same tags and seed, different hardware and random state).
 bs = df[df.tag.str.startswith("bs_")].copy()
 bs["b"] = bs.tag.str[3:].astype(int)
 full256 = df[df.tag == "abl_full"].assign(b=256)  # identical settings to a bs_256 run
-bs = pd.concat([bs, full256]).groupby("b").acc.mean().sort_index()
-if len(bs):
-    fig, ax = plt.subplots(figsize=(5.5, 3.8))
-    ax.plot(bs.index, bs.values, marker="o")
-    ax.set_xscale("log", base=2); ax.set_xticks(bs.index); ax.set_xticklabels(bs.index)
-    ax.set_xlabel("Batch size"); ax.set_ylabel("Linear-probe test accuracy (%)")
-    fig.tight_layout(); fig.savefig("results/batchsize_ablation.png", dpi=200)
+run1 = pd.concat([bs, full256]).groupby("b").acc.mean().sort_index()
+fig, ax = plt.subplots(figsize=(5.5, 3.8))
+if len(run1):
+    ax.plot(run1.index, run1.values, marker="o", label="Run 1 (Kaggle T4)")
+if glob.glob("results/batchsize_colab_nidhi.csv"):
+    c = pd.read_csv("results/batchsize_colab_nidhi.csv")
+    c["b"] = c.tag.str[3:].astype(int)
+    run2 = (c.groupby("b").test_acc.mean() * 100).sort_index()
+    ax.plot(run2.index, run2.values, marker="s", linestyle="--", label="Run 2 (Colab T4)")
+ax.set_xscale("log", base=2); ax.set_xticks([64, 128, 256, 512]); ax.set_xticklabels([64, 128, 256, 512])
+ax.set_xlabel("Batch size"); ax.set_ylabel("Linear-probe test accuracy (%)")
+ax.legend(frameon=False); fig.tight_layout(); fig.savefig("results/batchsize_ablation.png", dpi=200)
 
 # ---- 5. summary table for the report ----
 print(df.groupby(["tag", "mode", "frac"]).acc.mean().round(1).to_string())

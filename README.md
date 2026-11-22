@@ -27,7 +27,7 @@ New runs append to `results/results.csv`; the final numbers used in the report a
 ## Layout
 - `src/` augmentations (on/off flags), data and label subsets, ResNet-18 + projection head, NT-Xent loss
 - `train_simclr.py` pretraining; `evaluate.py` scratch / linear probe / fine-tune
-- `scripts/` experiment runners; `report/` final report (`report/main.pdf`, source `report/main.tex`, build with `tectonic main.tex` or `pdflatex`)
+- `scripts/` experiment runners; `report/` final report `report/report.pdf` (ELCVIA template, source `report/report.tex`; build in `report/` with `tectonic report.tex` or `pdflatex report.tex`)
 
 ## Results
 STL-10 test accuracy (8,000 images), ResNet-18, one seed. SimCLR pretrained for 50 epochs on the
