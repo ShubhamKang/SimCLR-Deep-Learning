@@ -90,6 +90,9 @@ dl = DataLoader(ds, a.batch_size, shuffle=True, drop_last=True, num_workers=a.wo
 # Create the network (ResNet-18 encoder + projection head) and move it to the GPU or CPU.
 model = SimCLR().to(dev)
 # The optimiser AdamW changes the weights after every batch. lr is the learning rate.
+# AdamW (Adam with decoupled Weight decay): Adam gives every weight its own step size, based
+# on running averages of its recent gradients (gradient = the direction that reduces the
+# loss); the "W" means weight decay is applied separately from that gradient step.
 # weight_decay=1e-6 (0.000001) gently pulls all weights towards zero, which helps against
 # overfitting. model.parameters() is the list of all weights it is allowed to change.
 opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-6)

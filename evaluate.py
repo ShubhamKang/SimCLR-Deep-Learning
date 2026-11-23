@@ -66,6 +66,8 @@ if a.mode != "scratch":
     # torch.load reads the checkpoint file; ["encoder"] picks the saved encoder weights
     # (see the torch.save line in train_simclr.py). map_location="cpu" loads them on the CPU
     # first, which works whether or not a GPU is present. load_state_dict copies them in.
+    # (A state_dict is a Python dictionary that maps every layer's name to its weight values;
+    # it is how PyTorch saves and loads the learned weights of a network.)
     enc.load_state_dict(torch.load(a.ckpt, map_location="cpu")["encoder"])
 # Move the encoder to the GPU or CPU.
 enc.to(dev)
@@ -74,6 +76,10 @@ enc.to(dev)
 def acc(model, dl):
     """Return the fraction of images in the data loader dl that the model classifies correctly."""
     # Evaluation mode: layers such as batch normalisation use their fixed, learned values.
+    # (Batch normalisation = a layer inside ResNet-18 that rescales each layer's outputs to a
+    # standard range. During training it uses the mean and spread of the current batch; in
+    # evaluation mode it uses averages stored during training, so a prediction does not
+    # depend on which other images happen to be in the same batch.)
     model.eval()
     # Counters for correct predictions and for the number of images seen.
     correct = n = 0
@@ -134,8 +140,9 @@ if a.mode == "linear":
     # The classifier: a single linear layer that turns 512 features into 10 class scores.
     # This is the ONLY thing trained in the linear probe.
     clf = nn.Linear(512, 10).to(dev)
-    # Adam optimiser for this layer. "a.lr or 1e-3" means: use --lr if it was given,
-    # otherwise 0.001. weight_decay=1e-4 discourages very large weights (less overfitting).
+    # Adam optimiser for this layer (Adam = an optimiser that gives every weight its own step
+    # size, based on running averages of its recent gradients).
+    # "a.lr or 1e-3" means: use --lr if it was given, otherwise 0.001. weight_decay=1e-4 discourages very large weights (less overfitting).
     opt = torch.optim.Adam(clf.parameters(), lr=a.lr or 1e-3, weight_decay=1e-4)
     # 300 training steps (unless --epochs was given). Each step uses ALL training features at
     # once ("full-batch"), which is possible because they are small (at most 5,000 x 512).
@@ -168,7 +175,8 @@ else:
     dl = DataLoader(train_ds, min(128, len(train_ds)), shuffle=True, num_workers=4, drop_last=True)
     # 100 epochs unless --epochs was given.
     epochs = a.epochs or 100
-    # AdamW optimiser for ALL weights of the network.
+    # AdamW optimiser for ALL weights of the network (AdamW = Adam with decoupled Weight decay:
+    # the weight decay is applied separately from the gradient step, see train_simclr.py).
     # Learning rate: --lr if given; otherwise 1e-3 (0.001) for scratch and 3e-4 (0.0003) for
     # finetune. The smaller rate for fine-tuning adjusts the pretrained weights gently
     # instead of overwriting what SimCLR learned.
